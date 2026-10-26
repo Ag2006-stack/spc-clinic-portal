@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SPC Clinic Portal</title>
+    <link rel="icon" href="images/logo.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <!-- LOGIN -->
+    <section id="view-login" class="view auth">
+      <div class="auth-card">
+        <div class="auth-side">
+          <img src="images/logo.png" alt="St. Peter's College logo" />
+          <h2>SPC Clinic Portal</h2>
+          <p>Book appointments, request forms and get clinic updates.</p>
+        </div>
+        <form class="auth-form" id="login-form" autocomplete="off">
+          <h1>Login</h1>
+          <label>Full Name<input id="login-name" required /></label>
+          <label
+            >Password<input id="login-pass" type="password" required
+          /></label>
+          <button class="btn primary" type="submit">Login</button>
+          <p class="alt">
+            Don't have an account? <a href="#" data-go="signup">Sign up</a>
+          </p>
+        </form>
+      </div>
+    </section>
+
+    <!-- SIGN UP -->
+    <section id="view-signup" class="view auth hidden">
+      <div class="auth-card">
+        <div class="auth-side">
+          <img src="images/logo.png" alt="St. Peter's College logo" />
+          <h2>Create your account</h2>
+          <p>Use your school ID to register.</p>
+        </div>
+        <form class="auth-form" id="signup-form" autocomplete="off">
+          <h1>Sign Up</h1>
+          <label>Full Name<input id="su-name" required /></label>
+          <label>School ID<input id="su-id" required /></label>
+          <label>Password<input id="su-pass" type="password" required /></label>
+          <button class="btn primary" type="submit">Create account</button>
+          <p class="alt">
+            Already have an account? <a href="#" data-go="login">Login</a>
+          </p>
+        </form>
+      </div>
+    </section>
+
+    <!-- STUDENT APP -->
+    <section id="view-student" class="view app hidden">
+      <header class="topbar">
+        <img src="images/logo.png" alt="" /><strong>SPC Clinic</strong>
+        <nav>
+          <button data-tab="home">Home</button>
+          <button data-tab="appointment">Appointment</button>
+          <button data-tab="notifications">
+            Notifications <span id="notif-badge" class="badge hidden"></span>
+          </button>
+          <button data-tab="profile">Edit Profile</button>
+          <button id="logout-student" class="ghost">Log out</button>
+        </nav>
+      </header>
+
+      <main>
+        <div class="tab" id="tab-home">
+          <h1>Welcome, <span id="h-welcome"></span></h1>
+          <div class="card profile">
+            <p><b>Name:</b> <span id="h-name"></span></p>
+            <p><b>ID:</b> <span id="h-id"></span></p>
+            <p><b>Age:</b> <span id="h-age"></span></p>
+            <p><b>Gender:</b> <span id="h-gender"></span></p>
+            <p><b>Role:</b> Student</p>
+          </div>
+        </div>
+
+        <div class="tab hidden" id="tab-appointment">
+          <h1>Appointment / HDF Request</h1>
+          <form class="card form" id="appt-form">
+            <label>Student ID<input id="a-id" required /></label>
+            <label>Name<input id="a-name" required /></label>
+            <div class="row">
+              <label>Date<input id="a-date" type="date" required /></label>
+              <label>Time<input id="a-time" type="time" required /></label>
+            </div>
+            <label>Doctor<input id="a-doctor" /></label>
+            <fieldset>
+              <legend>Type</legend>
+              <label class="inline"
+                ><input type="radio" name="a-type" value="Appointment" />
+                Appointment</label
+              >
+              <label class="inline"
+                ><input type="radio" name="a-type" value="HDF" /> HDF</label
+              >
+            </fieldset>
+            <label>Reason<textarea id="a-reason" rows="4"></textarea></label>
+            <div class="actions">
+              <button class="btn primary" type="submit">Submit</button
+              ><button class="btn" type="button" data-tab="home">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="tab hidden" id="tab-notifications">
+          <h1>My Notifications</h1>
+          <div id="notif-list" class="card"></div>
+        </div>
+
+        <div class="tab hidden" id="tab-profile">
+          <h1>Edit Profile</h1>
+          <form class="card form" id="profile-form" autocomplete="off">
+            <label>Name<input id="p-name" required /></label>
+            <label>Student ID<input id="p-id" required /></label>
+            <div class="row">
+              <label>Age<input id="p-age" type="number" min="0" /></label>
+              <label>Gender<input id="p-gender" /></label>
+            </div>
+            <label
+              >Password<input id="p-pass" type="password" required
+            /></label>
+            <div class="actions">
+              <button class="btn primary" type="submit">Save</button
+              ><button class="btn" type="button" data-tab="home">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </section>
+
+    <!-- ADMIN APP -->
+    <section id="view-admin" class="view app hidden">
+      <header class="topbar admin">
+        <img src="images/logo.png" alt="" /><strong>SPC Clinic – Admin</strong>
+        <nav>
+          <button data-atab="records">Records</button>
+          <button data-atab="search">Search</button>
+          <button data-atab="message">Send Message</button>
+          <button id="logout-admin" class="ghost">Log out</button>
+        </nav>
+      </header>
+      <main class="wide">
+        <!-- Records + archive -->
+        <div class="tab" id="atab-records">
+          <h1>Appointment Records and Archive</h1>
+          <div class="card">
+            <div class="toolbar">
+              <button class="btn" id="view-active">
+                Current Records (View All)
+              </button>
+              <span class="sep"></span>
+              <button class="btn" data-archive-view="0">
+                View 1st Sem 2025 (Archive)
+              </button>
+              <button class="btn" data-archive-view="1">
+                View 2nd Sem 2025 (Archive)
+              </button>
+            </div>
+            <div class="toolbar">
+              <button class="btn danger" data-archive-do="0">
+                ARCHIVE 1st Sem 2025
+              </button>
+              <button class="btn warn" data-delete-active="0">
+                DELETE 1st Sem 2025
+              </button>
+              <button class="btn danger" data-archive-do="1">
+                ARCHIVE 2nd Sem 2025
+              </button>
+              <button class="btn warn" data-delete-active="1">
+                DELETE 2nd Sem 2025
+              </button>
+            </div>
+            <div class="toolbar hidden" id="archive-delete-bar">
+              <button class="btn warn" id="delete-archive">
+                Delete these archive records
+              </button>
+            </div>
+            <p id="records-title" class="muted"></p>
+            <div class="table-wrap"><table id="records-table"></table></div>
+            <p class="muted small">
+              Click a row's reason to read it in full. Use "Delete" on a row to
+              remove that record.
+            </p>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div class="tab hidden" id="atab-search">
+          <h1>Search Records</h1>
+          <div class="card">
+            <div class="toolbar">
+              <input
+                id="search-id"
+                placeholder="Search by student ID…"
+              /><button class="btn primary" id="search-btn">Search</button>
+            </div>
+            <div class="table-wrap"><table id="search-table"></table></div>
+          </div>
+        </div>
+
+        <!-- Send message -->
+        <div class="tab hidden" id="atab-message">
+          <h1>Clinic Message Sender</h1>
+          <div class="card form">
+            <div class="toolbar">
+              <input id="m-id" placeholder="Student ID" /><button
+                class="btn"
+                id="m-lookup"
+              >
+                Lookup Details
+              </button>
+            </div>
+            <div class="lookup">
+              <p><b>Name:</b> <span id="m-name">---</span></p>
+              <p><b>Latest Form Type:</b> <span id="m-type">---</span></p>
+              <p><b>Date/Time:</b> <span id="m-date">---</span></p>
+            </div>
+            <fieldset>
+              <legend>Select Message Template</legend>
+              <label class="inline block"
+                ><input type="radio" name="m-tpl" value="confirm" /> 1.
+                Appointment Confirmation (uses latest appointment date)</label
+              >
+              <label class="inline block"
+                ><input type="radio" name="m-tpl" value="cancel" /> 2.
+                Appointment Cancellation (manual input)</label
+              >
+              <label class="inline block"
+                ><input type="radio" name="m-tpl" value="clearance" /> 3.
+                Medical Clearance Issued</label
+              >
+              <label class="inline block"
+                ><input type="radio" name="m-tpl" value="hdfok" /> 4. HDF
+                Approval (uses latest HDF date)</label
+              >
+              <label class="inline block"
+                ><input type="radio" name="m-tpl" value="hdfno" /> 5. HDF
+                Cancellation (manual input)</label
+              >
+            </fieldset>
+            <div id="m-extra" class="hidden">
+              <label>Reason<input id="m-reason" /></label>
+              <label>Suggest time<input id="m-suggest" /></label>
+            </div>
+            <div class="actions">
+              <button class="btn primary" id="m-send">Send Message</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- Detail dialog -->
+    <dialog id="dlg">
+      <h3 id="dlg-title"></h3>
+      <p id="dlg-body"></p>
+      <form method="dialog"><button class="btn primary">OK</button></form>
+    </dialog>
+    <dialog id="confirm-dlg">
+      <h3 id="cd-title"></h3>
+      <p id="cd-body"></p>
+      <div class="actions">
+        <button class="btn danger" id="cd-yes">Yes</button
+        ><button class="btn" id="cd-no">Cancel</button>
+      </div>
+    </dialog>
+
+    <script src="script.js"></script>
+  </body>
+</html>
