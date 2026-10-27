@@ -1,4 +1,8 @@
-'use strict';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://ukcoeeaqghzagsmumxiu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XeRi9LbzhqjYbu1twH9G_g_nVLGyQHQ';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ADMIN_NAME = 'Admin', ADMIN_PASS = '1952';
 
@@ -8,11 +12,6 @@ const TEMPLATES = {
   clearance: 'Medical Clearance Issued. You are cleared to attend classes/activities. Stay healthy!',
   hdfok:     'Your Health Declaration Form (HDF) Request has been Approved. Please Get Your HDF In The Clinic On [Date/Time].',
   hdfno:     'HDF Request Canceled. Reason: [Reason]. Suggested alternative: [Suggestion]. Please fill out a new form or contact the clinic.',
-};
-
-const DB = {
-  get(t) { try { return JSON.parse(localStorage.getItem('spc_' + t)) || []; } catch { return []; } },
-  set(t, rows) { try { localStorage.setItem('spc_' + t, JSON.stringify(rows)); } catch { toast('Could not save data.', true); } },
 };
 
 let session = null;
@@ -70,9 +69,6 @@ function fmtDateTime(date, time) {
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${h}:${pad(d.getMinutes())}${ap}`;
 }
 
-const inRange = (date, s, e) => date >= s && date <= e;
-const byNewest = (a, b) => (b.appt_date + b.appt_time).localeCompare(a.appt_date + a.appt_time);
-
 const pageId = document.body.id;
 
 function checkAuth() {
@@ -93,10 +89,13 @@ if ($('#signup-form')) {
     e.preventDefault();
     const name = $('#su-name').value.trim(), id = $('#su-id').value.trim(), pass = $('#su-pass').value;
     if (!name || !id || !pass) return toast('All fields are required.', true);
-    const students = DB.get('students');
-    if (students.some(s => s.id === id)) return toast('Registration Failed: School ID already exists.', true);
-    students.push({ name, id, password: await hash(pass), age: '', gender: '', avatar: '' });
-    DB.set('students', students);
+
+    const { data: existing } = await supabase.from('students').select('id').eq('id', id).maybeSingle();
+    if (existing) return toast('Registration Failed: School ID already exists.', true);
+
+    const { error } = await supabase.from('students').insert([{ id, name, password: await hash(pass), age: '', gender: '', avatar: '' }]);
+    if (error) return toast('Registration failed: ' + error.message, true);
+
     toast('Account created! Redirecting to login...', false);
     setTimeout(() => window.location.href = 'index.html', 1500);
   });
@@ -107,13 +106,16 @@ if ($('#login-form')) {
     e.preventDefault();
     const name = $('#login-name').value.trim(), pass = $('#login-pass').value;
     if (!name || !pass) return toast('Full Name and Password are required', true);
+
     if (name === ADMIN_NAME && pass === ADMIN_PASS) {
       session = { role: 'admin' }; saveSession(); window.location.href = 'admin.html'; return;
     }
-    const s = DB.get('students').find(x => x.name === name);
-    if (!s) return toast('User not found or Incorrect Name', true);
-    if (s.password !== await hash(pass)) return toast('Incorrect Password', true);
-    session = { role: 'student', id: s.id }; saveSession(); window.location.href = 'student.html';
+
+    const { data: student, error } = await supabase.from('students').select('*').eq('name', name).maybeSingle();
+    if (error || !student) return toast('User not found or Incorrect Name', true);
+    if (student.password !== await hash(pass)) return toast('Incorrect Password', true);
+
+    session = { role: 'student', id: student.id }; saveSession(); window.location.href = 'student.html';
   });
 }
 
@@ -122,24 +124,28 @@ if ($('#logout-student')) $('#logout-student').onclick = async () => { if (await
 if ($('#logout-admin')) $('#logout-admin').onclick = logout;
 
 // STUDENT DASHBOARD LOGIC
-const currentStudent = () => session ? DB.get('students').find(s => s.id === session.id) : null;
+async function loadStudentProfile() {
+  if (!session) return;
+  const { data: me } = await supabase.from('students').select('*').eq('id', session.id).single();
+  if (!me) return logout();
 
-function studentTab(name) {
+  if ($('#h-welcome')) $('#h-welcome').textContent = me.name;
+  if ($('#h-name')) $('#h-name').textContent = me.name;
+  if ($('#h-id')) $('#h-id').textContent = me.id;
+  if ($('#h-age')) $('#h-age').textContent = me.age || '—';
+  if ($('#h-gender')) $('#h-gender').textContent = me.gender || '—';
+  if ($('#h-avatar')) $('#h-avatar').src = me.avatar || 'images/logo.png';
+  if ($('#a-id')) { $('#a-id').value = me.id; $('#a-name').value = me.name; }
+  if ($('#p-name')) { $('#p-name').value = me.name; $('#p-id').value = me.id; $('#p-age').value = me.age || ''; $('#p-gender').value = me.gender || ''; }
+}
+
+async function studentTab(name) {
   $$('#view-student .tab').forEach(t => t.classList.add('hidden'));
   if ($('#tab-' + name)) $('#tab-' + name).classList.remove('hidden');
   $$('#view-student nav [data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  const me = currentStudent(); if (!me) return;
-  if (name === 'home') {
-    $('#h-welcome').textContent = me.name; $('#h-name').textContent = me.name; $('#h-id').textContent = me.id;
-    $('#h-age').textContent = me.age || '—'; $('#h-gender').textContent = me.gender || '—';
-    if ($('#h-avatar')) $('#h-avatar').src = me.avatar || 'images/logo.png';
-  }
-  if (name === 'appointment') { $('#a-id').value = me.id; $('#a-name').value = me.name; }
-  if (name === 'profile') {
-    $('#p-name').value = me.name; $('#p-id').value = me.id; $('#p-age').value = me.age; $('#p-gender').value = me.gender; $('#p-pass').value = '';
-  }
-  if (name === 'notifications') renderNotifications();
-  updateBadge();
+  if (name === 'home') await loadStudentProfile();
+  if (name === 'notifications') await renderNotifications();
+  await updateBadge();
 }
 
 if (pageId === 'page-student') {
@@ -147,33 +153,42 @@ if (pageId === 'page-student') {
   studentTab('home');
 }
 
-function updateBadge() {
+async function updateBadge() {
   if (!session) return;
   const seen = Number(localStorage.getItem('spc_seen_' + session.id) || 0);
-  const n = DB.get('messages').filter(m => m.student_id === session.id).length - seen;
-  const b = $('#notif-badge'); if (b) { b.textContent = n; b.classList.toggle('hidden', n <= 0); }
+  const { data: msgs } = await supabase.from('messages').select('id').eq('student_id', session.id);
+  const count = msgs ? msgs.length - seen : 0;
+  const b = $('#notif-badge'); if (b) { b.textContent = count; b.classList.toggle('hidden', count <= 0); }
 }
 
-function renderNotifications() {
+async function renderNotifications() {
   if (!session) return;
-  const msgs = DB.get('messages').filter(m => m.student_id === session.id).sort((a, b) => b.sent_date.localeCompare(a.sent_date));
-  $('#notif-list').innerHTML = msgs.length
+  const { data: msgs } = await supabase.from('messages').select('*').eq('student_id', session.id).order('sent_date', { ascending: false });
+  $('#notif-list').innerHTML = (msgs && msgs.length)
     ? msgs.map(m => `<div class="note"><time>${esc(m.sent_date)}</time>${esc(m.message_content)}</div>`).join('')
     : '<p class="muted">No new notifications for you.</p>';
-  try { localStorage.setItem('spc_seen_' + session.id, msgs.length); } catch {}
+  if (msgs) try { localStorage.setItem('spc_seen_' + session.id, msgs.length); } catch {}
 }
 
 if ($('#appt-form')) {
-  $('#appt-form').addEventListener('submit', e => {
+  $('#appt-form').addEventListener('submit', async e => {
     e.preventDefault();
     const type = ($('input[name="a-type"]:checked') || {}).value || 'Unspecified';
     const row = {
-      student_id: $('#a-id').value.trim(), student_name: $('#a-name').value.trim(),
-      appt_date: $('#a-date').value, appt_time: $('#a-time').value,
-      doctor: $('#a-doctor').value.trim(), reason: $('#a-reason').value.trim(), type, submission_time: nowStamp(),
+      student_id: $('#a-id').value.trim(),
+      student_name: $('#a-name').value.trim(),
+      appt_date: $('#a-date').value,
+      appt_time: $('#a-time').value,
+      doctor: $('#a-doctor').value.trim(),
+      reason: $('#a-reason').value.trim(),
+      type,
+      submission_time: nowStamp(),
     };
     if (!row.student_id || !row.student_name || !row.appt_date || !row.appt_time) return toast('Please fill in required fields!', true);
-    const rows = DB.get('appointments'); rows.push(row); DB.set('appointments', rows);
+
+    const { error } = await supabase.from('appointments').insert([row]);
+    if (error) return toast('Failed to save appointment: ' + error.message, true);
+
     e.target.reset(); $('#a-id').value = row.student_id; $('#a-name').value = row.student_name;
     toast('Appointment request saved successfully!', false);
   });
@@ -182,33 +197,30 @@ if ($('#appt-form')) {
 if ($('#profile-form')) {
   $('#profile-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const students = DB.get('students'), i = students.findIndex(s => s.id === session.id);
     const name = $('#p-name').value.trim(), id = $('#p-id').value.trim();
     if (!name || !id) return toast('Name and ID are required.', true);
-    
-    const old = students[i], newPass = $('#p-pass').value;
+
+    const { data: old } = await supabase.from('students').select('*').eq('id', session.id).single();
+    const newPass = $('#p-pass').value;
     const avatarFile = $('#p-avatar')?.files[0];
     let avatarUrl = old.avatar || '';
 
     if (avatarFile) {
-      try {
-        avatarUrl = await readFileAsDataURL(avatarFile);
-      } catch {
-        return toast('Failed to read image file.', true);
-      }
+      try { avatarUrl = await readFileAsDataURL(avatarFile); } catch { return toast('Failed to read image file.', true); }
     }
 
-    students[i] = { 
-      ...old, 
-      name, 
-      id, 
-      age: $('#p-age').value, 
-      gender: $('#p-gender').value.trim(), 
+    const updates = {
+      name,
+      id,
+      age: $('#p-age').value,
+      gender: $('#p-gender').value.trim(),
       password: newPass ? await hash(newPass) : old.password,
-      avatar: avatarUrl 
+      avatar: avatarUrl
     };
 
-    DB.set('students', students);
+    const { error } = await supabase.from('students').update(updates).eq('id', session.id);
+    if (error) return toast('Update failed: ' + error.message, true);
+
     session.id = id; saveSession();
     toast('Profile updated successfully!', false); studentTab('home');
   });
@@ -227,20 +239,29 @@ let table = 'appointments', activeArchiveSem = null;
 function recordsHtml(rows, withDelete) {
   if (!rows || !rows.length) return '<tr><td class="empty">No records.</td></tr>';
   return `<thead><tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor</th><th>Reason</th><th>Type</th><th>Submitted</th>${withDelete ? '<th></th>' : ''}</tr></thead><tbody>` +
-    rows.map((r, i) => `<tr><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td>
-      <td class="reason" data-reason="${i}">${esc(r.reason) || '—'}</td><td>${esc(r.type)}</td><td>${esc(r.submission_time)}</td>
-      ${withDelete ? `<td><button class="btn" data-del="${i}">Delete</button></td>` : ''}</tr>`).join('') + '</tbody>';
+    rows.map(r => `<tr><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td>
+      <td class="reason" data-reason="${r.id}">${esc(r.reason) || '—'}</td><td>${esc(r.type)}</td><td>${esc(r.submission_time)}</td>
+      ${withDelete ? `<td><button class="btn" data-del="${r.id}">Delete</button></td>` : ''}</tr>`).join('') + '</tbody>';
 }
 
 let shown = [];
-function renderRecords(rows, title) {
-  shown = rows.slice().sort(byNewest);
-  if ($('#records-title')) $('#records-title').textContent = title + ` (${shown.length})`;
+async function renderActive() {
+  table = 'appointments'; activeArchiveSem = null;
+  const { data: rows } = await supabase.from('appointments').select('*').order('appt_date', { ascending: false });
+  shown = rows || [];
+  if ($('#records-title')) $('#records-title').textContent = `Current records (${shown.length})`;
   if ($('#records-table')) $('#records-table').innerHTML = recordsHtml(shown, true);
-  if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.toggle('hidden', table !== 'appointment_archive');
+  if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.add('hidden');
 }
 
-function renderActive() { table = 'appointments'; activeArchiveSem = null; renderRecords(DB.get('appointments'), 'Current records'); }
+async function renderArchive(s) {
+  table = 'appointment_archive'; activeArchiveSem = s;
+  const { data: rows } = await supabase.from('appointment_archive').select('*').gte('appt_date', s.start).lte('appt_date', s.end).order('appt_date', { ascending: false });
+  shown = rows || [];
+  if ($('#records-title')) $('#records-title').textContent = `Archive – ${s.label} (${shown.length})`;
+  if ($('#records-table')) $('#records-table').innerHTML = recordsHtml(shown, true);
+  if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.remove('hidden');
+}
 
 function getSelectedSemester() {
   const choice = $('#sem-choice')?.value || '1';
@@ -260,40 +281,36 @@ if (pageId === 'page-admin') {
 
   if ($('#view-active')) $('#view-active').onclick = renderActive;
 
-  // View Archive (Allows viewing any year)
+  // View Archive
   if ($('#btn-view-archive')) {
-    $('#btn-view-archive').onclick = () => {
-      table = 'appointment_archive';
+    $('#btn-view-archive').onclick = async () => {
       const s = getSelectedSemester();
-      activeArchiveSem = s;
-      renderRecords(
-        DB.get('appointment_archive').filter(r => inRange(r.appt_date, s.start, s.end)),
-        'Archive – ' + s.label
-      );
+      await renderArchive(s);
     };
   }
 
-  // Archive Records (GREEN SUCCESS TOAST ON SUCCESS, RED TOAST ON BLOCKED YEAR)
+  // Archive Records (RESTRICTED TO CURRENT SYSTEM YEAR ONLY)
   if ($('#btn-do-archive')) {
     $('#btn-do-archive').onclick = async () => {
       const s = getSelectedSemester();
       const currentYear = new Date().getFullYear();
 
-      // BLOCK archiving if selected year is not the active current year
       if (s.year !== currentYear) {
         return toast(`Archiving locked: You can only archive records for the current year (${currentYear}).`, true);
       }
 
-      const rows = DB.get('appointments');
-      const move = rows.filter(r => inRange(r.appt_date, s.start, s.end));
+      const { data: move } = await supabase.from('appointments').select('*').gte('appt_date', s.start).lte('appt_date', s.end);
+      if (!move || !move.length) return toast(`No active records found to archive for ${s.label}.`, true);
 
-      if (!move.length) return toast(`No active records found to archive for ${s.label}.`, true);
       if (!await confirmBox('Confirm Archive Action', `Archive ${move.length} record(s) for ${s.label}?`)) return;
 
-      DB.set('appointment_archive', DB.get('appointment_archive').concat(move));
-      DB.set('appointments', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
+      const cleanMove = move.map(({ id, ...rest }) => rest);
+      const { error: insertErr } = await supabase.from('appointment_archive').insert(cleanMove);
+      if (insertErr) return toast('Failed to archive: ' + insertErr.message, true);
+
+      await supabase.from('appointments').delete().gte('appt_date', s.start).lte('appt_date', s.end);
       toast(`${move.length} records archived successfully for ${s.label}!`, false);
-      renderActive();
+      await renderActive();
     };
   }
 
@@ -301,15 +318,14 @@ if (pageId === 'page-admin') {
   if ($('#btn-delete-active')) {
     $('#btn-delete-active').onclick = async () => {
       const s = getSelectedSemester();
-      const rows = DB.get('appointments');
-      const gone = rows.filter(r => inRange(r.appt_date, s.start, s.end));
+      const { data: gone } = await supabase.from('appointments').select('id').gte('appt_date', s.start).lte('appt_date', s.end);
+      if (!gone || !gone.length) return toast(`No active records found for ${s.label}.`, true);
 
-      if (!gone.length) return toast(`No active records found for ${s.label}.`, true);
       if (!await confirmBox('CONFIRM DELETE', `Permanently delete ${gone.length} active record(s) for ${s.label}?`)) return;
 
-      DB.set('appointments', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
+      await supabase.from('appointments').delete().gte('appt_date', s.start).lte('appt_date', s.end);
       toast(`${gone.length} active records deleted for ${s.label}.`, false);
-      renderActive();
+      await renderActive();
     };
   }
 
@@ -317,35 +333,31 @@ if (pageId === 'page-admin') {
   if ($('#delete-archive')) {
     $('#delete-archive').onclick = async () => {
       const s = activeArchiveSem || getSelectedSemester();
-      const rows = DB.get('appointment_archive');
-      const gone = rows.filter(r => inRange(r.appt_date, s.start, s.end));
+      const { data: gone } = await supabase.from('appointment_archive').select('id').gte('appt_date', s.start).lte('appt_date', s.end);
+      if (!gone || !gone.length) return toast(`No archive records found for ${s.label}.`, true);
 
-      if (!gone.length) return toast(`No archive records found for ${s.label}.`, true);
       if (!await confirmBox('CONFIRM DELETE ARCHIVE RECORDS', `Delete ${gone.length} archive record(s) for ${s.label}?`)) return;
 
-      DB.set('appointment_archive', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
+      await supabase.from('appointment_archive').delete().gte('appt_date', s.start).lte('appt_date', s.end);
       toast(`${gone.length} archive records deleted for ${s.label}.`, false);
-      renderRecords(
-        DB.get('appointment_archive').filter(r => inRange(r.appt_date, s.start, s.end)),
-        'Archive – ' + s.label
-      );
+      await renderArchive(s);
     };
   }
 
   if ($('#records-table')) {
     $('#records-table').addEventListener('click', async e => {
       const rc = e.target.closest('[data-reason]');
-      if (rc) return info('Reason', shown[+rc.dataset.reason].reason || '(no reason given)');
+      if (rc) {
+        const item = shown.find(x => String(x.id) === String(rc.dataset.reason));
+        return info('Reason', item ? item.reason : '(no reason given)');
+      }
+
       const del = e.target.closest('[data-del]');
       if (del) {
-        const r = shown[+del.dataset.del];
-        if (!await confirmBox('Delete record', `Delete record for ${r.student_name}?`)) return;
-        const rows = DB.get(table), k = rows.findIndex(x => JSON.stringify(x) === JSON.stringify(r));
-        if (k >= 0) { rows.splice(k, 1); DB.set(table, rows); }
-        table === 'appointments' ? renderActive() : renderRecords(
-          DB.get('appointment_archive').filter(x => activeArchiveSem && inRange(x.appt_date, activeArchiveSem.start, activeArchiveSem.end)),
-          'Archive – ' + (activeArchiveSem ? activeArchiveSem.label : '')
-        );
+        const rId = del.dataset.del;
+        if (!await confirmBox('Delete record', `Delete selected record?`)) return;
+        await supabase.from(table).delete().eq('id', rId);
+        table === 'appointments' ? await renderActive() : await renderArchive(activeArchiveSem);
       }
     });
   }
@@ -354,28 +366,45 @@ if (pageId === 'page-admin') {
   renderActive();
 }
 
-// SEARCH & MESSAGING LOGIC
-function renderSearch() {
+// SEARCH LOGIC
+async function renderSearch() {
   const q = $('#search-id')?.value.trim().toLowerCase() || '';
-  const rows = DB.get('appointments').filter(r => !q || r.student_id.toLowerCase().includes(q)).sort(byNewest);
+  const { data: rows } = await supabase.from('appointments').select('*').order('appt_date', { ascending: false });
+  const filtered = (rows || []).filter(r => !q || r.student_id.toLowerCase().includes(q));
+
   if ($('#search-table')) {
-    $('#search-table').innerHTML = rows.length
+    $('#search-table').innerHTML = filtered.length
       ? '<thead><tr><th>Type</th><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor</th><th>Reason</th></tr></thead><tbody>' +
-        rows.map((r, i) => `<tr><td>${esc(r.type)}</td><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td><td class="reason" data-s="${i}">${esc(r.reason) || '—'}</td></tr>`).join('') + '</tbody>'
+        filtered.map(r => `<tr><td>${esc(r.type)}</td><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td><td class="reason" data-s="${r.id}">${esc(r.reason) || '—'}</td></tr>`).join('') + '</tbody>'
       : '<tr><td class="empty">No records found.</td></tr>';
-    $('#search-table')._rows = rows;
+    $('#search-table')._rows = filtered;
   }
 }
-if ($('#search-btn')) $('#search-btn').onclick = renderSearch;
 
+if ($('#search-btn')) $('#search-btn').onclick = renderSearch;
+if ($('#search-table')) {
+  $('#search-table').addEventListener('click', e => {
+    const c = e.target.closest('[data-s]');
+    if (c) {
+      const item = $('#search-table')._rows?.find(x => String(x.id) === String(c.dataset.s));
+      info('Full Reason', item ? item.reason : '(no reason given)');
+    }
+  });
+}
+
+// MESSAGING LOGIC
 if ($('#m-send')) {
-  $('#m-send').onclick = () => {
+  $('#m-send').onclick = async () => {
     const id = $('#m-id').value.trim(), tpl = ($('input[name="m-tpl"]:checked') || {}).value;
     if (!id || !tpl) return toast('Please fill in student ID and choose a template.', true);
-    const s = DB.get('students').find(x => x.id === id);
+
+    const { data: s } = await supabase.from('students').select('*').eq('id', id).maybeSingle();
     if (!s) return toast(`Student ID '${id}' not found.`, true);
+
     let msg = TEMPLATES[tpl];
-    const msgs = DB.get('messages'); msgs.push({ student_id: id, message_content: msg, sent_date: nowStamp() }); DB.set('messages', msgs);
+    const { error } = await supabase.from('messages').insert([{ student_id: id, message_content: msg, sent_date: nowStamp() }]);
+    if (error) return toast('Failed to send message: ' + error.message, true);
+
     info('Message sent', `Sent to ${s.name}\n\n${msg}`);
   };
 }
