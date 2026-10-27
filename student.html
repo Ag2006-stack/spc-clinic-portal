@@ -28,6 +28,7 @@
   </header>
 
   <main>
+    <!-- HOME TAB -->
     <div class="tab" id="tab-home">
       <h1>Welcome, <span id="h-welcome"></span></h1>
       <div class="card profile" style="text-align: center;">
@@ -42,30 +43,74 @@
       </div>
     </div>
 
+    <!-- APPOINTMENT TAB -->
     <div class="tab hidden" id="tab-appointment">
       <h1>Appointment / HDF Request</h1>
+      
+      <!-- Clinic Hours Banner -->
+      <div class="lookup" style="margin-bottom: 16px; border-left: 4px solid var(--teal);">
+        <p style="margin: 0; font-size: 0.85rem; color: var(--muted);">
+          <b>Clinic Hours:</b> Monday – Friday, 8:00 AM – 5:00 PM | Same-day or future scheduling available.
+        </p>
+      </div>
+
       <form class="card form" id="appt-form">
-        <label>Student ID<input id="a-id" required></label>
-        <label>Name<input id="a-name" required></label>
+        <label>Student ID
+          <input id="a-id" readonly style="opacity: 0.75; cursor: not-allowed; background: var(--bg);">
+        </label>
+        <label>Name
+          <input id="a-name" readonly style="opacity: 0.75; cursor: not-allowed; background: var(--bg);">
+        </label>
+
         <div class="row">
-          <label>Date<input id="a-date" type="date" required></label>
-          <label>Time<input id="a-time" type="time" required></label>
+          <label>Date
+            <input id="a-date" type="date" required>
+          </label>
+          <label>Time
+            <input id="a-time" type="time" min="08:00" max="17:00" required>
+          </label>
         </div>
-        <label>Doctor<input id="a-doctor"></label>
-        <fieldset><legend>Type</legend>
+
+        <fieldset><legend>Request Type</legend>
           <label class="inline"><input type="radio" name="a-type" value="Appointment" checked> Appointment</label>
-          <label class="inline"><input type="radio" name="a-type" value="HDF"> HDF</label>
+          <label class="inline"><input type="radio" name="a-type" value="HDF"> Health Declaration Form (HDF)</label>
         </fieldset>
-        <label>Reason<textarea id="a-reason" rows="4"></textarea></label>
-        <div class="actions"><button class="btn primary" type="submit">Submit</button><button class="btn" type="button" data-tab="home">Cancel</button></div>
+
+        <div id="doctor-group">
+          <label>Attending Personnel / Duty Availability
+            <select id="a-doctor">
+              <option value="Nurse on Duty (No Doctor)">Nurse on Duty (No Doctor Available)</option>
+              <option value="Working Student / Staff on Duty">Working Student / Staff on Duty</option>
+              <option value="Dr. Santos (General Physician)">Dr. Santos (General Physician)</option>
+              <option value="custom">Other / Specific Schedule Details...</option>
+            </select>
+          </label>
+
+          <div id="custom-doctor-group" class="hidden" style="margin-top: 10px;">
+            <label>Specify Personnel / Doctor Schedule
+              <input id="a-doctor-custom" placeholder="e.g., Doctor available after 2:00 PM only">
+            </label>
+          </div>
+        </div>
+
+        <label>Reason for Visit / Request
+          <textarea id="a-reason" rows="4" placeholder="e.g., Medical check-up, severe headache, dental referral, clearance submission..." required></textarea>
+        </label>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">Submit Request</button>
+          <button class="btn" type="button" data-tab="home">Cancel</button>
+        </div>
       </form>
     </div>
 
+    <!-- NOTIFICATIONS TAB -->
     <div class="tab hidden" id="tab-notifications">
       <h1>My Notifications</h1>
       <div id="notif-list" class="card"></div>
     </div>
 
+    <!-- EDIT PROFILE TAB -->
     <div class="tab hidden" id="tab-profile">
       <h1>Edit Profile</h1>
       <form class="card form" id="profile-form" autocomplete="off">

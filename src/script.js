@@ -62,13 +62,6 @@ function readFileAsDataURL(file) {
 const pad = n => String(n).padStart(2, '0');
 const nowStamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 
-function fmtDateTime(date, time) {
-  const d = new Date(`${date}T${time.length === 5 ? time + ':00' : time}`);
-  if (isNaN(d)) return `${date} ${time}`;
-  let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
-  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${h}:${pad(d.getMinutes())}${ap}`;
-}
-
 const pageId = document.body.id;
 
 function checkAuth() {
@@ -143,13 +136,37 @@ async function studentTab(name) {
   $$('#view-student .tab').forEach(t => t.classList.add('hidden'));
   if ($('#tab-' + name)) $('#tab-' + name).classList.remove('hidden');
   $$('#view-student nav [data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  
   if (name === 'home') await loadStudentProfile();
+  if (name === 'appointment') {
+    await loadStudentProfile();
+    const today = new Date().toISOString().split('T')[0];
+    if ($('#a-date')) $('#a-date').min = today;
+  }
   if (name === 'notifications') await renderNotifications();
   await updateBadge();
 }
 
 if (pageId === 'page-student') {
   $$('#view-student [data-tab]').forEach(b => b.addEventListener('click', () => studentTab(b.dataset.tab)));
+  
+  // Dynamic HDF vs Appointment Doctor Field Toggle
+  $$('input[name="a-type"]').forEach(radio => {
+    radio.addEventListener('change', e => {
+      const isHDF = e.target.value === 'HDF';
+      const docGroup = $('#doctor-group');
+      if (docGroup) docGroup.classList.toggle('hidden', isHDF);
+    });
+  });
+
+  // Handle Custom Doctor Selection Toggle
+  if ($('#a-doctor')) {
+    $('#a-doctor').addEventListener('change', e => {
+      const customGroup = $('#custom-doctor-group');
+      if (customGroup) customGroup.classList.toggle('hidden', e.target.value !== 'custom');
+    });
+  }
+
   studentTab('home');
 }
 
@@ -174,23 +191,40 @@ if ($('#appt-form')) {
   $('#appt-form').addEventListener('submit', async e => {
     e.preventDefault();
     const type = ($('input[name="a-type"]:checked') || {}).value || 'Unspecified';
+    
+    let doctorVal = 'Clinic Staff (HDF Processing)';
+    if (type !== 'HDF') {
+      const selectedDoc = $('#a-doctor')?.value;
+      if (selectedDoc === 'custom') {
+        doctorVal = $('#a-doctor-custom')?.value.trim() || 'Custom Schedule';
+      } else {
+        doctorVal = selectedDoc || 'Nurse on Duty';
+      }
+    }
+
     const row = {
       student_id: $('#a-id').value.trim(),
       student_name: $('#a-name').value.trim(),
       appt_date: $('#a-date').value,
       appt_time: $('#a-time').value,
-      doctor: $('#a-doctor').value.trim(),
+      doctor: doctorVal,
       reason: $('#a-reason').value.trim(),
       type,
       submission_time: nowStamp(),
     };
-    if (!row.student_id || !row.student_name || !row.appt_date || !row.appt_time) return toast('Please fill in required fields!', true);
+
+    if (!row.student_id || !row.student_name || !row.appt_date || !row.appt_time || !row.reason) {
+      return toast('Please fill in all required fields!', true);
+    }
 
     const { error } = await supabase.from('appointments').insert([row]);
-    if (error) return toast('Failed to save appointment: ' + error.message, true);
+    if (error) return toast('Failed to save request: ' + error.message, true);
 
-    e.target.reset(); $('#a-id').value = row.student_id; $('#a-name').value = row.student_name;
-    toast('Appointment request saved successfully!', false);
+    e.target.reset(); 
+    $('#a-id').value = row.student_id; 
+    $('#a-name').value = row.student_name;
+    if ($('#custom-doctor-group')) $('#custom-doctor-group').classList.add('hidden');
+    toast(`${type} request saved successfully!`, false);
   });
 }
 
@@ -238,7 +272,7 @@ let table = 'appointments', activeArchiveSem = null;
 
 function recordsHtml(rows, withDelete) {
   if (!rows || !rows.length) return '<tr><td class="empty">No records.</td></tr>';
-  return `<thead><tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor</th><th>Reason</th><th>Type</th><th>Submitted</th>${withDelete ? '<th></th>' : ''}</tr></thead><tbody>` +
+  return `<thead><tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor/Personnel</th><th>Reason</th><th>Type</th><th>Submitted</th>${withDelete ? '<th></th>' : ''}</tr></thead><tbody>` +
     rows.map(r => `<tr><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td>
       <td class="reason" data-reason="${r.id}">${esc(r.reason) || '—'}</td><td>${esc(r.type)}</td><td>${esc(r.submission_time)}</td>
       ${withDelete ? `<td><button class="btn" data-del="${r.id}">Delete</button></td>` : ''}</tr>`).join('') + '</tbody>';
@@ -263,17 +297,14 @@ async function renderArchive(s) {
   if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.remove('hidden');
 }
 
-// UPDATED ACADEMIC CALENDAR RANGES
 function getSelectedSemester() {
   const choice = $('#sem-choice')?.value || '1';
   const yearStr = $('#sem-year')?.value;
   const year = parseInt(yearStr, 10) || new Date().getFullYear();
 
   if (choice === '1') {
-    // 1st Semester: August 1 to December 31
     return { label: `1st Sem ${year}`, start: `${year}-08-01`, end: `${year}-12-31`, year: year };
   } else {
-    // 2nd Semester: January 1 to July 31
     return { label: `2nd Sem ${year}`, start: `${year}-01-01`, end: `${year}-07-31`, year: year };
   }
 }
@@ -377,7 +408,7 @@ async function renderSearch() {
 
   if ($('#search-table')) {
     $('#search-table').innerHTML = filtered.length
-      ? '<thead><tr><th>Type</th><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor</th><th>Reason</th></tr></thead><tbody>' +
+      ? '<thead><tr><th>Type</th><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor/Personnel</th><th>Reason</th></tr></thead><tbody>' +
         filtered.map(r => `<tr><td>${esc(r.type)}</td><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td><td class="reason" data-s="${r.id}">${esc(r.reason) || '—'}</td></tr>`).join('') + '</tbody>'
       : '<tr><td class="empty">No records found.</td></tr>';
     $('#search-table')._rows = filtered;
