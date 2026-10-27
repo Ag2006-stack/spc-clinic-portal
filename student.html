@@ -71,6 +71,9 @@
           </label>
         </div>
 
+        <!-- Dynamic Availability Notice -->
+        <div id="date-notice" class="lookup hidden" style="border-left: 4px solid var(--warn);"></div>
+
         <fieldset><legend>Request Type</legend>
           <label class="inline"><input type="radio" name="a-type" value="Appointment" checked> Appointment</label>
           <label class="inline"><input type="radio" name="a-type" value="HDF"> Health Declaration Form (HDF)</label>
@@ -98,7 +101,7 @@
         </label>
 
         <div class="actions">
-          <button class="btn primary" type="submit">Submit Request</button>
+          <button class="btn primary" id="appt-submit-btn" type="submit">Submit Request</button>
           <button class="btn" type="button" data-tab="home">Cancel</button>
         </div>
       </form>

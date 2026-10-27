@@ -20,12 +20,14 @@
     <strong>SPC Clinic – Admin</strong>
     <nav>
       <button data-atab="records" class="active">Records</button>
+      <button data-atab="schedule">Manage Schedule</button>
       <button data-atab="search">Search</button>
       <button data-atab="message">Send Message</button>
       <button id="logout-admin" class="ghost">Log out</button>
     </nav>
   </header>
   <main class="wide">
+    <!-- RECORDS TAB -->
     <div class="tab" id="atab-records">
       <h1>Appointment Records and Archive</h1>
       <div class="card">
@@ -61,6 +63,38 @@
       </div>
     </div>
 
+    <!-- MANAGE CLINIC SCHEDULE TAB -->
+    <div class="tab hidden" id="atab-schedule">
+      <h1>Manage Clinic Availability & Block Dates</h1>
+      <div class="card form">
+        <h3>Set Special Date Status</h3>
+        <div class="row">
+          <label>Select Date
+            <input id="sched-date" type="date" required>
+          </label>
+          <label>Clinic Status
+            <select id="sched-status">
+              <option value="closed">Clinic Closed (No Appointments)</option>
+              <option value="working_student_only">Working Student / Staff Only</option>
+              <option value="nurse_only">Nurse on Duty Only (No Doctor)</option>
+            </select>
+          </label>
+        </div>
+        <label>Reason / Note for Students
+          <input id="sched-reason" placeholder="e.g., Faculty Meeting, School Holiday, Doctor on Leave...">
+        </label>
+        <div class="actions">
+          <button class="btn primary" id="sched-save">Save Date Status</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Custom Date Restrictions</h3>
+        <div class="table-wrap"><table id="sched-table"></table></div>
+      </div>
+    </div>
+
+    <!-- SEARCH TAB -->
     <div class="tab hidden" id="atab-search">
       <h1>Search Records</h1>
       <div class="card">
@@ -69,6 +103,7 @@
       </div>
     </div>
 
+    <!-- MESSAGE TAB -->
     <div class="tab hidden" id="atab-message">
       <h1>Clinic Message Sender</h1>
       <div class="card form">

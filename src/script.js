@@ -132,6 +132,44 @@ async function loadStudentProfile() {
   if ($('#p-name')) { $('#p-name').value = me.name; $('#p-id').value = me.id; $('#p-age').value = me.age || ''; $('#p-gender').value = me.gender || ''; }
 }
 
+async function checkDateAvailability(selectedDate) {
+  const noticeBox = $('#date-notice');
+  const submitBtn = $('#appt-submit-btn');
+  const doctorSelect = $('#a-doctor');
+  if (!noticeBox || !selectedDate) return;
+
+  const { data: sched } = await supabase.from('clinic_schedule').select('*').eq('date', selectedDate).maybeSingle();
+
+  if (!sched) {
+    noticeBox.classList.add('hidden');
+    if (submitBtn) submitBtn.disabled = false;
+    if (doctorSelect) doctorSelect.disabled = false;
+    return;
+  }
+
+  noticeBox.classList.remove('hidden');
+  const reasonText = sched.reason ? ` Note: ${sched.reason}` : '';
+
+  if (sched.status === 'closed') {
+    noticeBox.innerHTML = `<p style="margin: 0; color: var(--danger);"><b>Clinic Closed on ${selectedDate}.</b> Appointments and requests are disabled for this date.${reasonText}</p>`;
+    if (submitBtn) submitBtn.disabled = true;
+  } else if (sched.status === 'working_student_only') {
+    noticeBox.innerHTML = `<p style="margin: 0; color: var(--warn);"><b>Working Student / Staff Only on ${selectedDate}.</b> Doctors/Nurses are unavailable. ${reasonText}</p>`;
+    if (submitBtn) submitBtn.disabled = false;
+    if (doctorSelect) {
+      doctorSelect.value = 'Working Student / Staff on Duty';
+      doctorSelect.disabled = true;
+    }
+  } else if (sched.status === 'nurse_only') {
+    noticeBox.innerHTML = `<p style="margin: 0; color: var(--teal);"><b>Nurse on Duty Only on ${selectedDate}.</b> Doctor is unavailable.${reasonText}</p>`;
+    if (submitBtn) submitBtn.disabled = false;
+    if (doctorSelect) {
+      doctorSelect.value = 'Nurse on Duty (No Doctor)';
+      doctorSelect.disabled = true;
+    }
+  }
+}
+
 async function studentTab(name) {
   $$('#view-student .tab').forEach(t => t.classList.add('hidden'));
   if ($('#tab-' + name)) $('#tab-' + name).classList.remove('hidden');
@@ -141,7 +179,10 @@ async function studentTab(name) {
   if (name === 'appointment') {
     await loadStudentProfile();
     const today = new Date().toISOString().split('T')[0];
-    if ($('#a-date')) $('#a-date').min = today;
+    if ($('#a-date')) {
+      $('#a-date').min = today;
+      if ($('#a-date').value) await checkDateAvailability($('#a-date').value);
+    }
   }
   if (name === 'notifications') await renderNotifications();
   await updateBadge();
@@ -150,6 +191,11 @@ async function studentTab(name) {
 if (pageId === 'page-student') {
   $$('#view-student [data-tab]').forEach(b => b.addEventListener('click', () => studentTab(b.dataset.tab)));
   
+  // Date change availability check
+  if ($('#a-date')) {
+    $('#a-date').addEventListener('change', e => checkDateAvailability(e.target.value));
+  }
+
   // Dynamic HDF vs Appointment Doctor Field Toggle
   $$('input[name="a-type"]').forEach(radio => {
     radio.addEventListener('change', e => {
@@ -224,6 +270,7 @@ if ($('#appt-form')) {
     $('#a-id').value = row.student_id; 
     $('#a-name').value = row.student_name;
     if ($('#custom-doctor-group')) $('#custom-doctor-group').classList.add('hidden');
+    if ($('#date-notice')) $('#date-notice').classList.add('hidden');
     toast(`${type} request saved successfully!`, false);
   });
 }
@@ -266,6 +313,7 @@ function adminTab(name) {
   if ($('#atab-' + name)) $('#atab-' + name).classList.remove('hidden');
   $$('#view-admin nav [data-atab]').forEach(b => b.classList.toggle('active', b.dataset.atab === name));
   if (name === 'search') renderSearch();
+  if (name === 'schedule') renderScheduleTable();
 }
 
 let table = 'appointments', activeArchiveSem = null;
@@ -297,6 +345,16 @@ async function renderArchive(s) {
   if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.remove('hidden');
 }
 
+async function renderScheduleTable() {
+  const { data: rows } = await supabase.from('clinic_schedule').select('*').order('date', { ascending: true });
+  if ($('#sched-table')) {
+    $('#sched-table').innerHTML = (rows && rows.length)
+      ? '<thead><tr><th>Date</th><th>Status</th><th>Note / Reason</th><th></th></tr></thead><tbody>' +
+        rows.map(r => `<tr><td>${esc(r.date)}</td><td><b>${esc(r.status.replace(/_/g, ' ').toUpperCase())}</b></td><td>${esc(r.reason) || '—'}</td><td><button class="btn danger" data-del-sched="${r.date}">Remove Restriction</button></td></tr>`).join('') + '</tbody>'
+      : '<tr><td class="empty">No special date restrictions set.</td></tr>';
+  }
+}
+
 function getSelectedSemester() {
   const choice = $('#sem-choice')?.value || '1';
   const yearStr = $('#sem-year')?.value;
@@ -321,6 +379,38 @@ if (pageId === 'page-admin') {
       const s = getSelectedSemester();
       await renderArchive(s);
     };
+  }
+
+  // Save Schedule Restriction
+  if ($('#sched-save')) {
+    $('#sched-save').onclick = async () => {
+      const d = $('#sched-date')?.value;
+      const status = $('#sched-status')?.value;
+      const reason = $('#sched-reason')?.value.trim();
+
+      if (!d) return toast('Please select a date.', true);
+
+      const { error } = await supabase.from('clinic_schedule').upsert([{ date: d, status, reason }]);
+      if (error) return toast('Failed to save schedule: ' + error.message, true);
+
+      toast(`Schedule restriction saved for ${d}!`, false);
+      $('#sched-date').value = '';
+      $('#sched-reason').value = '';
+      await renderScheduleTable();
+    };
+  }
+
+  if ($('#sched-table')) {
+    $('#sched-table').addEventListener('click', async e => {
+      const del = e.target.closest('[data-del-sched]');
+      if (del) {
+        const d = del.dataset.delSched;
+        if (!await confirmBox('Remove Restriction', `Remove restriction for date ${d}?`)) return;
+        await supabase.from('clinic_schedule').delete().eq('date', d);
+        toast(`Restriction for ${d} removed.`, false);
+        await renderScheduleTable();
+      }
+    });
   }
 
   // Archive Records (RESTRICTED TO CURRENT SYSTEM YEAR ONLY)
