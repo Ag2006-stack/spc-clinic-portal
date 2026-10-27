@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPC Clinic Portal - Admin</title>
+  <link rel="icon" href="images/logo.png">
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body id="page-admin">
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<section id="view-admin" class="view app">
+  <header class="topbar admin">
+    <img src="images/logo.png" alt="SPC Logo">
+    <strong>SPC Clinic – Admin</strong>
+    <nav>
+      <button data-atab="records" class="active">Records</button>
+      <button data-atab="search">Search</button>
+      <button data-atab="message">Send Message</button>
+      <button id="logout-admin" class="ghost">Log out</button>
+    </nav>
+  </header>
+  <main class="wide">
+    <div class="tab" id="atab-records">
+      <h1>Appointment Records and Archive</h1>
+      <div class="card">
+        <div class="toolbar">
+          <button class="btn" id="view-active">Current Records (View All)</button>
+          <span class="sep"></span>
+          <button class="btn" data-archive-view="0">View 1st Sem 2025 (Archive)</button>
+          <button class="btn" data-archive-view="1">View 2nd Sem 2025 (Archive)</button>
+        </div>
+        <div class="toolbar">
+          <button class="btn danger" data-archive-do="0">ARCHIVE 1st Sem 2025</button>
+          <button class="btn warn" data-delete-active="0">DELETE 1st Sem 2025</button>
+          <button class="btn danger" data-archive-do="1">ARCHIVE 2nd Sem 2025</button>
+          <button class="btn warn" data-delete-active="1">DELETE 2nd Sem 2025</button>
+        </div>
+        <div class="toolbar hidden" id="archive-delete-bar"><button class="btn warn" id="delete-archive">Delete these archive records</button></div>
+        <p id="records-title" class="muted"></p>
+        <div class="table-wrap"><table id="records-table"></table></div>
+        <p class="muted small">Click a row's reason to read it in full. Use "Delete" on a row to remove that record.</p>
+      </div>
+    </div>
+
+    <div class="tab hidden" id="atab-search">
+      <h1>Search Records</h1>
+      <div class="card">
+        <div class="toolbar"><input id="search-id" placeholder="Search by student ID…"><button class="btn primary" id="search-btn">Search</button></div>
+        <div class="table-wrap"><table id="search-table"></table></div>
+      </div>
+    </div>
+
+    <div class="tab hidden" id="atab-message">
+      <h1>Clinic Message Sender</h1>
+      <div class="card form">
+        <div class="toolbar"><input id="m-id" placeholder="Student ID"><button class="btn" id="m-lookup">Lookup Details</button></div>
+        <div class="lookup">
+          <p><b>Name:</b> <span id="m-name">---</span></p>
+          <p><b>Latest Form Type:</b> <span id="m-type">---</span></p>
+          <p><b>Date/Time:</b> <span id="m-date">---</span></p>
+        </div>
+        <fieldset><legend>Select Message Template</legend>
+          <label class="inline block"><input type="radio" name="m-tpl" value="confirm"> 1. Appointment Confirmation (uses latest appointment date)</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="cancel"> 2. Appointment Cancellation (manual input)</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="clearance"> 3. Medical Clearance Issued</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="hdfok"> 4. HDF Approval (uses latest HDF date)</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="hdfno"> 5. HDF Cancellation (manual input)</label>
+        </fieldset>
+        <div id="m-extra" class="hidden">
+          <label>Reason<input id="m-reason"></label>
+          <label>Suggest time<input id="m-suggest"></label>
+        </div>
+        <div class="actions"><button class="btn primary" id="m-send">Send Message</button></div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<dialog id="dlg"><h3 id="dlg-title"></h3><p id="dlg-body"></p><form method="dialog"><button class="btn primary">OK</button></form></dialog>
+<dialog id="confirm-dlg"><h3 id="cd-title"></h3><p id="cd-body"></p><div class="actions"><button class="btn danger" id="cd-yes">Yes</button><button class="btn" id="cd-no">Cancel</button></div></dialog>
+
+<script src="src/script.js"></script>
+</body>
+</html>

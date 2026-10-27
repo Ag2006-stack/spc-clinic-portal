@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPC Clinic Portal - Sign Up</title>
+  <link rel="icon" href="images/logo.png">
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body id="page-signup">
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<section id="view-signup" class="view auth">
+  <div class="auth-card">
+    <div class="auth-side">
+      <img src="images/logo.png" alt="St. Peter's College logo">
+      <h2>Create your account</h2>
+      <p>Use your school ID to register.</p>
+    </div>
+    <form class="auth-form" id="signup-form" autocomplete="off">
+      <h1>Sign Up</h1>
+      <label>Full Name<input id="su-name" required></label>
+      <label>School ID<input id="su-id" required></label>
+      <label>Password<input id="su-pass" type="password" required></label>
+      <button class="btn primary" type="submit">Create account</button>
+      <p class="alt">Already have an account? <a href="index.html">Login</a></p>
+    </form>
+  </div>
+</section>
+
+<dialog id="dlg"><h3 id="dlg-title"></h3><p id="dlg-body"></p><form method="dialog"><button class="btn primary">OK</button></form></dialog>
+<dialog id="confirm-dlg"><h3 id="cd-title"></h3><p id="cd-body"></p><div class="actions"><button class="btn danger" id="cd-yes">Yes</button><button class="btn" id="cd-no">Cancel</button></div></dialog>
+
+<script src="src/script.js"></script>
+</body>
+</html>

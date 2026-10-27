@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPC Clinic Portal - Student</title>
+  <link rel="icon" href="images/logo.png">
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body id="page-student">
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<section id="view-student" class="view app">
+  <header class="topbar">
+    <img src="images/logo.png" alt="SPC Logo">
+    <strong>SPC Clinic</strong>
+    <nav>
+      <button data-tab="home" class="active">Home</button>
+      <button data-tab="appointment">Appointment</button>
+      <button data-tab="notifications">Notifications <span id="notif-badge" class="badge hidden"></span></button>
+      <button data-tab="profile">Edit Profile</button>
+      <button id="logout-student" class="ghost">Log out</button>
+    </nav>
+  </header>
+
+  <main>
+    <div class="tab" id="tab-home">
+      <h1>Welcome, <span id="h-welcome"></span></h1>
+      <div class="card profile">
+        <p><b>Name:</b> <span id="h-name"></span></p>
+        <p><b>ID:</b> <span id="h-id"></span></p>
+        <p><b>Age:</b> <span id="h-age"></span></p>
+        <p><b>Gender:</b> <span id="h-gender"></span></p>
+        <p><b>Role:</b> Student</p>
+      </div>
+    </div>
+
+    <div class="tab hidden" id="tab-appointment">
+      <h1>Appointment / HDF Request</h1>
+      <form class="card form" id="appt-form">
+        <label>Student ID<input id="a-id" required></label>
+        <label>Name<input id="a-name" required></label>
+        <div class="row">
+          <label>Date<input id="a-date" type="date" required></label>
+          <label>Time<input id="a-time" type="time" required></label>
+        </div>
+        <label>Doctor<input id="a-doctor"></label>
+        <fieldset><legend>Type</legend>
+          <label class="inline"><input type="radio" name="a-type" value="Appointment" checked> Appointment</label>
+          <label class="inline"><input type="radio" name="a-type" value="HDF"> HDF</label>
+        </fieldset>
+        <label>Reason<textarea id="a-reason" rows="4"></textarea></label>
+        <div class="actions"><button class="btn primary" type="submit">Submit</button><button class="btn" type="button" data-tab="home">Cancel</button></div>
+      </form>
+    </div>
+
+    <div class="tab hidden" id="tab-notifications">
+      <h1>My Notifications</h1>
+      <div id="notif-list" class="card"></div>
+    </div>
+
+    <div class="tab hidden" id="tab-profile">
+      <h1>Edit Profile</h1>
+      <form class="card form" id="profile-form" autocomplete="off">
+        <label>Name<input id="p-name" required></label>
+        <label>Student ID<input id="p-id" required></label>
+        <div class="row">
+          <label>Age<input id="p-age" type="number" min="0"></label>
+          <label>Gender<input id="p-gender"></label>
+        </div>
+        <label>Password<input id="p-pass" type="password"></label>
+        <div class="actions"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" data-tab="home">Cancel</button></div>
+      </form>
+    </div>
+  </main>
+</section>
+
+<dialog id="dlg"><h3 id="dlg-title"></h3><p id="dlg-body"></p><form method="dialog"><button class="btn primary">OK</button></form></dialog>
+<dialog id="confirm-dlg"><h3 id="cd-title"></h3><p id="cd-body"></p><div class="actions"><button class="btn danger" id="cd-yes">Yes</button><button class="btn" id="cd-no">Cancel</button></div></dialog>
+
+<script src="src/script.js"></script>
+</body>
+</html>
