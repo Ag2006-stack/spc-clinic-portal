@@ -28,17 +28,22 @@
   </header>
 
   <main>
+    <!-- HOME TAB -->
     <div class="tab" id="tab-home">
       <h1>Welcome, <span id="h-welcome"></span></h1>
-      <div class="card profile">
-        <p><b>Name:</b> <span id="h-name"></span></p>
-        <p><b>ID:</b> <span id="h-id"></span></p>
-        <p><b>Age:</b> <span id="h-age"></span></p>
-        <p><b>Gender:</b> <span id="h-gender"></span></p>
-        <p><b>Role:</b> Student</p>
+      <div class="card profile" style="text-align: center;">
+        <img id="h-avatar" src="images/logo.png" alt="Profile Picture" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; margin: 0 auto 16px auto; display: block; border: 3px solid var(--maroon); box-shadow: var(--shadow-md);">
+        <div style="text-align: left;">
+          <p><b>Name:</b> <span id="h-name"></span></p>
+          <p><b>ID:</b> <span id="h-id"></span></p>
+          <p><b>Age:</b> <span id="h-age"></span></p>
+          <p><b>Gender:</b> <span id="h-gender"></span></p>
+          <p><b>Role:</b> Student</p>
+        </div>
       </div>
     </div>
 
+    <!-- APPOINTMENT TAB -->
     <div class="tab hidden" id="tab-appointment">
       <h1>Appointment / HDF Request</h1>
       <form class="card form" id="appt-form">
@@ -58,22 +63,27 @@
       </form>
     </div>
 
+    <!-- NOTIFICATIONS TAB -->
     <div class="tab hidden" id="tab-notifications">
       <h1>My Notifications</h1>
       <div id="notif-list" class="card"></div>
     </div>
 
+    <!-- EDIT PROFILE TAB -->
     <div class="tab hidden" id="tab-profile">
       <h1>Edit Profile</h1>
       <form class="card form" id="profile-form" autocomplete="off">
+        <label>Profile Picture
+          <input id="p-avatar" type="file" accept="image/*">
+        </label>
         <label>Name<input id="p-name" required></label>
         <label>Student ID<input id="p-id" required></label>
         <div class="row">
           <label>Age<input id="p-age" type="number" min="0"></label>
           <label>Gender<input id="p-gender"></label>
         </div>
-        <label>Password<input id="p-pass" type="password"></label>
-        <div class="actions"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" data-tab="home">Cancel</button></div>
+        <label>Password<input id="p-pass" type="password" placeholder="Leave blank to keep current password"></label>
+        <div class="actions"><button class="btn primary" type="submit">Save Changes</button><button class="btn" type="button" data-tab="home">Cancel</button></div>
       </form>
     </div>
   </main>

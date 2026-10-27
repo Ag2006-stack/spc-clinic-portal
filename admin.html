@@ -29,14 +29,24 @@
     <div class="tab" id="atab-records">
       <h1>Appointment Records and Archive</h1>
       <div class="card">
-        <!-- Dynamic Toolbar Controls -->
+        <!-- Manual Semester & Year Toolbar -->
         <div class="toolbar">
           <button class="btn primary" id="view-active">Current Records (View All)</button>
           <span class="sep"></span>
+          
           <label class="inline">
             Semester:
-            <select id="semester-select"></select>
+            <select id="sem-choice">
+              <option value="1">1st Semester</option>
+              <option value="2">2nd Semester</option>
+            </select>
           </label>
+
+          <label class="inline">
+            Year:
+            <input id="sem-year" type="number" min="2000" max="2099" style="width: 95px;">
+          </label>
+
           <button class="btn" id="btn-view-archive">View Archive</button>
           <button class="btn danger" id="btn-do-archive">Archive Records</button>
           <button class="btn warn" id="btn-delete-active">Delete Active</button>
