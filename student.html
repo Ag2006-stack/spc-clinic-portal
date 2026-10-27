@@ -28,7 +28,6 @@
   </header>
 
   <main>
-    <!-- HOME TAB -->
     <div class="tab" id="tab-home">
       <h1>Welcome, <span id="h-welcome"></span></h1>
       <div class="card profile" style="text-align: center;">
@@ -43,7 +42,6 @@
       </div>
     </div>
 
-    <!-- APPOINTMENT TAB -->
     <div class="tab hidden" id="tab-appointment">
       <h1>Appointment / HDF Request</h1>
       <form class="card form" id="appt-form">
@@ -63,13 +61,11 @@
       </form>
     </div>
 
-    <!-- NOTIFICATIONS TAB -->
     <div class="tab hidden" id="tab-notifications">
       <h1>My Notifications</h1>
       <div id="notif-list" class="card"></div>
     </div>
 
-    <!-- EDIT PROFILE TAB -->
     <div class="tab hidden" id="tab-profile">
       <h1>Edit Profile</h1>
       <form class="card form" id="profile-form" autocomplete="off">
@@ -92,6 +88,6 @@
 <dialog id="dlg"><h3 id="dlg-title"></h3><p id="dlg-body"></p><form method="dialog"><button class="btn primary">OK</button></form></dialog>
 <dialog id="confirm-dlg"><h3 id="cd-title"></h3><p id="cd-body"></p><div class="actions"><button class="btn danger" id="cd-yes">Yes</button><button class="btn" id="cd-no">Cancel</button></div></dialog>
 
-<script src="src/script.js"></script>
+<script type="module" src="src/script.js"></script>
 </body>
 </html>
