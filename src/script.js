@@ -263,15 +263,18 @@ async function renderArchive(s) {
   if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.remove('hidden');
 }
 
+// UPDATED ACADEMIC CALENDAR RANGES
 function getSelectedSemester() {
   const choice = $('#sem-choice')?.value || '1';
   const yearStr = $('#sem-year')?.value;
   const year = parseInt(yearStr, 10) || new Date().getFullYear();
 
   if (choice === '1') {
-    return { label: `1st Sem ${year}`, start: `${year}-01-01`, end: `${year}-05-31`, year: year };
+    // 1st Semester: August 1 to December 31
+    return { label: `1st Sem ${year}`, start: `${year}-08-01`, end: `${year}-12-31`, year: year };
   } else {
-    return { label: `2nd Sem ${year}`, start: `${year}-06-01`, end: `${year}-12-31`, year: year };
+    // 2nd Semester: January 1 to July 31
+    return { label: `2nd Sem ${year}`, start: `${year}-01-01`, end: `${year}-07-31`, year: year };
   }
 }
 
