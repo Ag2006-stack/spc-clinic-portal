@@ -91,8 +91,11 @@ if ($('#signup-form')) {
     const name = $('#su-name').value.trim(), id = $('#su-id').value.trim(), pass = $('#su-pass').value;
     if (!name || !id || !pass) return toast('All fields are required.', true);
 
-    const { data: existing } = await supabase.from('students').select('id').eq('id', id).maybeSingle();
-    if (existing) return toast('Registration Failed: School ID already exists.', true);
+    const { data: existingId } = await supabase.from('students').select('id').eq('id', id).maybeSingle();
+    if (existingId) return toast('Registration Failed: School ID already exists.', true);
+
+    const { data: existingName } = await supabase.from('students').select('name').eq('name', name).maybeSingle();
+    if (existingName) return toast('Registration Failed: Full Name is already registered.', true);
 
     const { error } = await supabase.from('students').insert([{ id, name, password: await hash(pass), age: '', gender: '', avatar: '' }]);
     if (error) return toast('Registration failed: ' + error.message, true);
@@ -105,15 +108,20 @@ if ($('#signup-form')) {
 if ($('#login-form')) {
   $('#login-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const name = $('#login-name').value.trim(), pass = $('#login-pass').value;
-    if (!name || !pass) return toast('Full Name and Password are required', true);
+    const loginInput = $('#login-id').value.trim(), pass = $('#login-pass').value;
+    if (!loginInput || !pass) return toast('School ID / Name and Password are required', true);
 
-    if (name === ADMIN_NAME && pass === ADMIN_PASS) {
+    if (loginInput === ADMIN_NAME && pass === ADMIN_PASS) {
       session = { role: 'admin' }; saveSession(); window.location.href = 'admin.html'; return;
     }
 
-    const { data: student, error } = await supabase.from('students').select('*').eq('name', name).maybeSingle();
-    if (error || !student) return toast('User not found or Incorrect Name', true);
+    let { data: student } = await supabase.from('students').select('*').eq('id', loginInput).maybeSingle();
+    if (!student) {
+      const { data: studentByName } = await supabase.from('students').select('*').eq('name', loginInput).maybeSingle();
+      student = studentByName;
+    }
+
+    if (!student) return toast('User not found or Incorrect School ID / Name', true);
     if (student.password !== await hash(pass)) return toast('Incorrect Password', true);
 
     session = { role: 'student', id: student.id }; saveSession(); window.location.href = 'student.html';
@@ -540,7 +548,6 @@ async function doStudentLookup() {
 
   lookedUpStudent = student;
 
-  // Query latest appointment record for this student
   const { data: appts } = await supabase.from('appointments')
     .select('*')
     .eq('student_id', id)
@@ -578,7 +585,6 @@ if ($('#m-id')) {
   });
 }
 
-// Toggle extra cancellation fields
 $$('input[name="m-tpl"]').forEach(radio => {
   radio.addEventListener('change', e => {
     const isCancel = ['cancel', 'hdfno'].includes(e.target.value);
