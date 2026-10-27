@@ -74,18 +74,20 @@
         <!-- Dynamic Availability Notice -->
         <div id="date-notice" class="lookup hidden" style="border-left: 4px solid var(--warn);"></div>
 
-        <fieldset><legend>Request Type</legend>
-          <label class="inline"><input type="radio" name="a-type" value="Appointment" checked> Appointment</label>
-          <label class="inline"><input type="radio" name="a-type" value="HDF"> Health Declaration Form (HDF)</label>
-        </fieldset>
+        <label>Service Category
+          <select id="a-category" required>
+            <option value="Medical Clearance">Medical Clearance (Sports / Event)</option>
+            <option value="Dental Checkup">Dental Checkup / Referral</option>
+            <option value="General Consultation">General Medical Consultation</option>
+            <option value="Minor Injury">First Aid / Minor Injury</option>
+            <option value="HDF">Health Declaration Form (HDF)</option>
+          </select>
+        </label>
 
         <div id="doctor-group">
-          <label>Attending Personnel / Duty Availability
+          <label>Attending Personnel
             <select id="a-doctor">
-              <option value="Nurse on Duty (No Doctor)">Nurse on Duty (No Doctor Available)</option>
-              <option value="Working Student / Staff on Duty">Working Student / Staff on Duty</option>
-              <option value="Dr. Santos (General Physician)">Dr. Santos (General Physician)</option>
-              <option value="custom">Other / Specific Schedule Details...</option>
+              <!-- Options populated dynamically based on selected Service Category -->
             </select>
           </label>
 
@@ -96,8 +98,8 @@
           </div>
         </div>
 
-        <label>Reason for Visit / Request
-          <textarea id="a-reason" rows="4" placeholder="e.g., Medical check-up, severe headache, dental referral, clearance submission..." required></textarea>
+        <label>Reason for Visit / Details
+          <textarea id="a-reason" rows="4" placeholder="e.g., Clearance for intramurals, severe toothache, routine checkup..." required></textarea>
         </label>
 
         <div class="actions">

@@ -91,11 +91,9 @@ if ($('#signup-form')) {
     const name = $('#su-name').value.trim(), id = $('#su-id').value.trim(), pass = $('#su-pass').value;
     if (!name || !id || !pass) return toast('All fields are required.', true);
 
-    // Case-insensitive duplicate check for School ID
     const { data: existingId } = await supabase.from('students').select('id').ilike('id', id);
     if (existingId && existingId.length > 0) return toast('Registration Failed: School ID already exists.', true);
 
-    // Case-insensitive duplicate check for Full Name
     const { data: existingName } = await supabase.from('students').select('name').ilike('name', name);
     if (existingName && existingName.length > 0) return toast('Registration Failed: Full Name is already registered.', true);
 
@@ -117,7 +115,6 @@ if ($('#login-form')) {
       session = { role: 'admin' }; saveSession(); window.location.href = 'admin.html'; return;
     }
 
-    // Case-insensitive lookup by School ID or Full Name
     let { data: studentsById } = await supabase.from('students').select('*').ilike('id', loginInput);
     let student = studentsById && studentsById.length ? studentsById[0] : null;
 
@@ -137,7 +134,35 @@ const logout = () => { session = null; saveSession(); window.location.href = 'in
 if ($('#logout-student')) $('#logout-student').onclick = async () => { if (await confirmBox('Log Out', 'Are you sure?')) logout(); };
 if ($('#logout-admin')) $('#logout-admin').onclick = logout;
 
-// STUDENT DASHBOARD LOGIC
+// STUDENT DASHBOARD & APPOINTMENT PERSONNEL FILTERING
+const PERSONNEL_OPTIONS = {
+  medical: [
+    { value: 'Dr. Santos (General Physician)', text: 'Dr. Santos (General Physician)' },
+    { value: 'Nurse on Duty', text: 'Nurse on Duty' },
+    { value: 'custom', text: 'Other / Specific Doctor or Nurse Schedule...' }
+  ],
+  hdf: [
+    { value: 'Clinic Staff (HDF Processing)', text: 'Clinic Staff (HDF Processing)' },
+    { value: 'Working Student / Staff on Duty', text: 'Working Student / Staff on Duty' },
+    { value: 'Nurse on Duty', text: 'Nurse on Duty' }
+  ]
+};
+
+function updatePersonnelDropdown() {
+  const category = $('#a-category')?.value;
+  const doctorSelect = $('#a-doctor');
+  if (!doctorSelect || !category) return;
+
+  const isMedicalService = ['Medical Clearance', 'Dental Checkup', 'General Consultation', 'Minor Injury'].includes(category);
+  const optionsList = isMedicalService ? PERSONNEL_OPTIONS.medical : PERSONNEL_OPTIONS.hdf;
+
+  doctorSelect.innerHTML = optionsList.map(opt => `<option value="${opt.value}">${opt.text}</option>`).join('');
+
+  if ($('#custom-doctor-group')) {
+    $('#custom-doctor-group').classList.toggle('hidden', doctorSelect.value !== 'custom');
+  }
+}
+
 async function loadStudentProfile() {
   if (!session) return;
   const { data: me } = await supabase.from('students').select('*').eq('id', session.id).single();
@@ -175,7 +200,7 @@ async function checkDateAvailability(selectedDate) {
     noticeBox.innerHTML = `<p style="margin: 0; color: var(--danger);"><b>Clinic Closed on ${selectedDate}.</b> Appointments and requests are disabled for this date.${reasonText}</p>`;
     if (submitBtn) submitBtn.disabled = true;
   } else if (sched.status === 'working_student_only') {
-    noticeBox.innerHTML = `<p style="margin: 0; color: var(--warn);"><b>Working Student / Staff Only on ${selectedDate}.</b> Doctors/Nurses are unavailable. ${reasonText}</p>`;
+    noticeBox.innerHTML = `<p style="margin: 0; color: var(--warn);"><b>Working Student / Staff Only on ${selectedDate}.</b> Doctors/Nurses are unavailable.${reasonText}</p>`;
     if (submitBtn) submitBtn.disabled = false;
     if (doctorSelect) {
       doctorSelect.value = 'Working Student / Staff on Duty';
@@ -185,7 +210,7 @@ async function checkDateAvailability(selectedDate) {
     noticeBox.innerHTML = `<p style="margin: 0; color: var(--teal);"><b>Nurse on Duty Only on ${selectedDate}.</b> Doctor is unavailable.${reasonText}</p>`;
     if (submitBtn) submitBtn.disabled = false;
     if (doctorSelect) {
-      doctorSelect.value = 'Nurse on Duty (No Doctor)';
+      doctorSelect.value = 'Nurse on Duty';
       doctorSelect.disabled = true;
     }
   }
@@ -199,6 +224,7 @@ async function studentTab(name) {
   if (name === 'home') await loadStudentProfile();
   if (name === 'appointment') {
     await loadStudentProfile();
+    updatePersonnelDropdown();
     const today = new Date().toISOString().split('T')[0];
     if ($('#a-date')) {
       $('#a-date').min = today;
@@ -212,17 +238,13 @@ async function studentTab(name) {
 if (pageId === 'page-student') {
   $$('#view-student [data-tab]').forEach(b => b.addEventListener('click', () => studentTab(b.dataset.tab)));
   
+  if ($('#a-category')) {
+    $('#a-category').addEventListener('change', updatePersonnelDropdown);
+  }
+
   if ($('#a-date')) {
     $('#a-date').addEventListener('change', e => checkDateAvailability(e.target.value));
   }
-
-  $$('input[name="a-type"]').forEach(radio => {
-    radio.addEventListener('change', e => {
-      const isHDF = e.target.value === 'HDF';
-      const docGroup = $('#doctor-group');
-      if (docGroup) docGroup.classList.toggle('hidden', isHDF);
-    });
-  });
 
   if ($('#a-doctor')) {
     $('#a-doctor').addEventListener('change', e => {
@@ -254,16 +276,12 @@ async function renderNotifications() {
 if ($('#appt-form')) {
   $('#appt-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const type = ($('input[name="a-type"]:checked') || {}).value || 'Unspecified';
+    const category = $('#a-category')?.value || 'Appointment';
+    const selectedDoc = $('#a-doctor')?.value;
     
-    let doctorVal = 'Clinic Staff (HDF Processing)';
-    if (type !== 'HDF') {
-      const selectedDoc = $('#a-doctor')?.value;
-      if (selectedDoc === 'custom') {
-        doctorVal = $('#a-doctor-custom')?.value.trim() || 'Custom Schedule';
-      } else {
-        doctorVal = selectedDoc || 'Nurse on Duty';
-      }
+    let doctorVal = selectedDoc || 'Nurse on Duty';
+    if (selectedDoc === 'custom') {
+      doctorVal = $('#a-doctor-custom')?.value.trim() || 'Custom Schedule';
     }
 
     const row = {
@@ -273,7 +291,7 @@ if ($('#appt-form')) {
       appt_time: $('#a-time').value,
       doctor: doctorVal,
       reason: $('#a-reason').value.trim(),
-      type,
+      type: category,
       submission_time: nowStamp(),
     };
 
@@ -287,9 +305,9 @@ if ($('#appt-form')) {
     e.target.reset(); 
     $('#a-id').value = row.student_id; 
     $('#a-name').value = row.student_name;
-    if ($('#custom-doctor-group')) $('#custom-doctor-group').classList.add('hidden');
+    updatePersonnelDropdown();
     if ($('#date-notice')) $('#date-notice').classList.add('hidden');
-    toast(`${type} request saved successfully!`, false);
+    toast(`${category} request saved successfully!`, false);
   });
 }
 
