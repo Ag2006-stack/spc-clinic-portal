@@ -91,11 +91,13 @@ if ($('#signup-form')) {
     const name = $('#su-name').value.trim(), id = $('#su-id').value.trim(), pass = $('#su-pass').value;
     if (!name || !id || !pass) return toast('All fields are required.', true);
 
-    const { data: existingId } = await supabase.from('students').select('id').eq('id', id).maybeSingle();
-    if (existingId) return toast('Registration Failed: School ID already exists.', true);
+    // Case-insensitive duplicate check for School ID
+    const { data: existingId } = await supabase.from('students').select('id').ilike('id', id);
+    if (existingId && existingId.length > 0) return toast('Registration Failed: School ID already exists.', true);
 
-    const { data: existingName } = await supabase.from('students').select('name').eq('name', name).maybeSingle();
-    if (existingName) return toast('Registration Failed: Full Name is already registered.', true);
+    // Case-insensitive duplicate check for Full Name
+    const { data: existingName } = await supabase.from('students').select('name').ilike('name', name);
+    if (existingName && existingName.length > 0) return toast('Registration Failed: Full Name is already registered.', true);
 
     const { error } = await supabase.from('students').insert([{ id, name, password: await hash(pass), age: '', gender: '', avatar: '' }]);
     if (error) return toast('Registration failed: ' + error.message, true);
@@ -115,10 +117,13 @@ if ($('#login-form')) {
       session = { role: 'admin' }; saveSession(); window.location.href = 'admin.html'; return;
     }
 
-    let { data: student } = await supabase.from('students').select('*').eq('id', loginInput).maybeSingle();
+    // Case-insensitive lookup by School ID or Full Name
+    let { data: studentsById } = await supabase.from('students').select('*').ilike('id', loginInput);
+    let student = studentsById && studentsById.length ? studentsById[0] : null;
+
     if (!student) {
-      const { data: studentByName } = await supabase.from('students').select('*').eq('name', loginInput).maybeSingle();
-      student = studentByName;
+      const { data: studentsByName } = await supabase.from('students').select('*').ilike('name', loginInput);
+      student = studentsByName && studentsByName.length ? studentsByName[0] : null;
     }
 
     if (!student) return toast('User not found or Incorrect School ID / Name', true);
@@ -532,7 +537,9 @@ async function doStudentLookup() {
   const id = $('#m-id')?.value.trim();
   if (!id) return toast('Please enter a Student ID to lookup.', true);
 
-  const { data: student, error: sErr } = await supabase.from('students').select('*').eq('id', id).maybeSingle();
+  const { data: students, error: sErr } = await supabase.from('students').select('*').ilike('id', id);
+  const student = students && students.length ? students[0] : null;
+
   if (sErr || !student) {
     lookedUpStudent = null;
     lookedUpAppt = null;
@@ -550,7 +557,7 @@ async function doStudentLookup() {
 
   const { data: appts } = await supabase.from('appointments')
     .select('*')
-    .eq('student_id', id)
+    .ilike('student_id', id)
     .order('appt_date', { ascending: false })
     .order('appt_time', { ascending: false })
     .limit(1);
