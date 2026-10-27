@@ -62,6 +62,14 @@ function readFileAsDataURL(file) {
 const pad = n => String(n).padStart(2, '0');
 const nowStamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 
+function fmtDateTime(date, time) {
+  if (!date || !time) return '—';
+  const d = new Date(`${date}T${time.length === 5 ? time + ':00' : time}`);
+  if (isNaN(d)) return `${date} ${time}`;
+  let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${h}:${pad(d.getMinutes())}${ap}`;
+}
+
 const pageId = document.body.id;
 
 function checkAuth() {
@@ -191,12 +199,10 @@ async function studentTab(name) {
 if (pageId === 'page-student') {
   $$('#view-student [data-tab]').forEach(b => b.addEventListener('click', () => studentTab(b.dataset.tab)));
   
-  // Date change availability check
   if ($('#a-date')) {
     $('#a-date').addEventListener('change', e => checkDateAvailability(e.target.value));
   }
 
-  // Dynamic HDF vs Appointment Doctor Field Toggle
   $$('input[name="a-type"]').forEach(radio => {
     radio.addEventListener('change', e => {
       const isHDF = e.target.value === 'HDF';
@@ -205,7 +211,6 @@ if (pageId === 'page-student') {
     });
   });
 
-  // Handle Custom Doctor Selection Toggle
   if ($('#a-doctor')) {
     $('#a-doctor').addEventListener('change', e => {
       const customGroup = $('#custom-doctor-group');
@@ -373,7 +378,6 @@ if (pageId === 'page-admin') {
 
   if ($('#view-active')) $('#view-active').onclick = renderActive;
 
-  // View Archive
   if ($('#btn-view-archive')) {
     $('#btn-view-archive').onclick = async () => {
       const s = getSelectedSemester();
@@ -381,7 +385,6 @@ if (pageId === 'page-admin') {
     };
   }
 
-  // Save Schedule Restriction
   if ($('#sched-save')) {
     $('#sched-save').onclick = async () => {
       const d = $('#sched-date')?.value;
@@ -413,7 +416,6 @@ if (pageId === 'page-admin') {
     });
   }
 
-  // Archive Records (RESTRICTED TO CURRENT SYSTEM YEAR ONLY)
   if ($('#btn-do-archive')) {
     $('#btn-do-archive').onclick = async () => {
       const s = getSelectedSemester();
@@ -438,7 +440,6 @@ if (pageId === 'page-admin') {
     };
   }
 
-  // Delete Active Records
   if ($('#btn-delete-active')) {
     $('#btn-delete-active').onclick = async () => {
       const s = getSelectedSemester();
@@ -453,7 +454,6 @@ if (pageId === 'page-admin') {
     };
   }
 
-  // Delete Archive Records
   if ($('#delete-archive')) {
     $('#delete-archive').onclick = async () => {
       const s = activeArchiveSem || getSelectedSemester();
@@ -516,19 +516,106 @@ if ($('#search-table')) {
   });
 }
 
-// MESSAGING LOGIC
+// LOOKUP & MESSAGING LOGIC
+let lookedUpStudent = null;
+let lookedUpAppt = null;
+
+async function doStudentLookup() {
+  const id = $('#m-id')?.value.trim();
+  if (!id) return toast('Please enter a Student ID to lookup.', true);
+
+  const { data: student, error: sErr } = await supabase.from('students').select('*').eq('id', id).maybeSingle();
+  if (sErr || !student) {
+    lookedUpStudent = null;
+    lookedUpAppt = null;
+    if ($('#m-name')) $('#m-name').textContent = 'Student Not Found';
+    if ($('#m-student-id')) $('#m-student-id').textContent = '---';
+    if ($('#m-age-gender')) $('#m-age-gender').textContent = '---';
+    if ($('#m-type')) $('#m-type').textContent = '---';
+    if ($('#m-date')) $('#m-date').textContent = '---';
+    if ($('#m-doctor')) $('#m-doctor').textContent = '---';
+    if ($('#m-avatar')) $('#m-avatar').src = 'images/logo.png';
+    return toast(`Student ID '${id}' not found.`, true);
+  }
+
+  lookedUpStudent = student;
+
+  // Query latest appointment record for this student
+  const { data: appts } = await supabase.from('appointments')
+    .select('*')
+    .eq('student_id', id)
+    .order('appt_date', { ascending: false })
+    .order('appt_time', { ascending: false })
+    .limit(1);
+
+  lookedUpAppt = appts && appts.length ? appts[0] : null;
+
+  if ($('#m-name')) $('#m-name').textContent = student.name;
+  if ($('#m-student-id')) $('#m-student-id').textContent = student.id;
+  if ($('#m-age-gender')) $('#m-age-gender').textContent = `${student.age || '—'} yrs / ${student.gender || '—'}`;
+  if ($('#m-avatar')) $('#m-avatar').src = student.avatar || 'images/logo.png';
+
+  if (lookedUpAppt) {
+    if ($('#m-type')) $('#m-type').textContent = lookedUpAppt.type || 'Appointment';
+    if ($('#m-date')) $('#m-date').textContent = fmtDateTime(lookedUpAppt.appt_date, lookedUpAppt.appt_time);
+    if ($('#m-doctor')) $('#m-doctor').textContent = lookedUpAppt.doctor || 'Nurse / Staff on Duty';
+  } else {
+    if ($('#m-type')) $('#m-type').textContent = 'No appointment records found';
+    if ($('#m-date')) $('#m-date').textContent = '—';
+    if ($('#m-doctor')) $('#m-doctor').textContent = '—';
+  }
+
+  toast(`Loaded profile for ${student.name}!`, false);
+}
+
+if ($('#m-lookup')) $('#m-lookup').onclick = doStudentLookup;
+if ($('#m-id')) {
+  $('#m-id').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doStudentLookup();
+    }
+  });
+}
+
+// Toggle extra cancellation fields
+$$('input[name="m-tpl"]').forEach(radio => {
+  radio.addEventListener('change', e => {
+    const isCancel = ['cancel', 'hdfno'].includes(e.target.value);
+    if ($('#m-extra')) $('#m-extra').classList.toggle('hidden', !isCancel);
+  });
+});
+
 if ($('#m-send')) {
   $('#m-send').onclick = async () => {
-    const id = $('#m-id').value.trim(), tpl = ($('input[name="m-tpl"]:checked') || {}).value;
-    if (!id || !tpl) return toast('Please fill in student ID and choose a template.', true);
+    const id = $('#m-id')?.value.trim();
+    const tplKey = ($('input[name="m-tpl"]:checked') || {}).value;
 
-    const { data: s } = await supabase.from('students').select('*').eq('id', id).maybeSingle();
-    if (!s) return toast(`Student ID '${id}' not found.`, true);
+    if (!id || !tplKey) return toast('Please enter Student ID and select a message template.', true);
 
-    let msg = TEMPLATES[tpl];
-    const { error } = await supabase.from('messages').insert([{ student_id: id, message_content: msg, sent_date: nowStamp() }]);
+    if (!lookedUpStudent || lookedUpStudent.id !== id) {
+      await doStudentLookup();
+      if (!lookedUpStudent) return;
+    }
+
+    let msg = TEMPLATES[tplKey];
+    const dateTimeStr = lookedUpAppt ? fmtDateTime(lookedUpAppt.appt_date, lookedUpAppt.appt_time) : 'your scheduled time';
+    const reasonInput = $('#m-reason-input')?.value.trim() || 'Schedule conflict / Unforeseen circumstances';
+    const suggestInput = $('#m-suggest-input')?.value.trim() || 'Next available clinic schedule';
+
+    msg = msg.replace('[Date/Time]', dateTimeStr)
+             .replace('[Reason]', reasonInput)
+             .replace('[Suggestion]', suggestInput);
+
+    const { error } = await supabase.from('messages').insert([{ 
+      student_id: id, 
+      message_content: msg, 
+      sent_date: nowStamp() 
+    }]);
+
     if (error) return toast('Failed to send message: ' + error.message, true);
 
-    info('Message sent', `Sent to ${s.name}\n\n${msg}`);
+    info('Message Sent', `Notification delivered to ${lookedUpStudent.name}:\n\n"${msg}"`);
+    toast(`Message sent to ${lookedUpStudent.name}!`, false);
   };
 }

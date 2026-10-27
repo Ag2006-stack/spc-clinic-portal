@@ -103,27 +103,44 @@
       </div>
     </div>
 
-    <!-- MESSAGE TAB -->
+    <!-- MESSAGE SENDER TAB WITH PROFILE LOOKUP -->
     <div class="tab hidden" id="atab-message">
       <h1>Clinic Message Sender</h1>
       <div class="card form">
-        <div class="toolbar"><input id="m-id" placeholder="Student ID"><button class="btn" id="m-lookup">Lookup Details</button></div>
-        <div class="lookup">
-          <p><b>Name:</b> <span id="m-name">---</span></p>
-          <p><b>Latest Form Type:</b> <span id="m-type">---</span></p>
-          <p><b>Date/Time:</b> <span id="m-date">---</span></p>
+        <div class="toolbar">
+          <input id="m-id" placeholder="Enter Student ID (e.g., 2024-00641)">
+          <button class="btn primary" id="m-lookup">Lookup Details</button>
         </div>
+
+        <!-- Student Profile Card -->
+        <div class="lookup" id="m-profile-card" style="display: flex; gap: 16px; align-items: center; background: var(--bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px;">
+          <img id="m-avatar" src="images/logo.png" alt="Profile Picture" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--maroon); flex-shrink: 0; box-shadow: var(--shadow-sm);">
+          <div style="flex: 1;">
+            <p style="margin: 2px 0; font-size: 1rem;"><b>Name:</b> <span id="m-name">---</span> (<span id="m-student-id">---</span>)</p>
+            <p style="margin: 2px 0; color: var(--muted); font-size: 0.875rem;"><b>Age / Gender:</b> <span id="m-age-gender">---</span></p>
+            <p style="margin: 2px 0; font-size: 0.875rem;"><b>Latest Form Type:</b> <span id="m-type" style="font-weight: 700; color: var(--teal);">---</span></p>
+            <p style="margin: 2px 0; font-size: 0.875rem;"><b>Scheduled Date/Time:</b> <span id="m-date">---</span></p>
+            <p style="margin: 2px 0; font-size: 0.875rem;"><b>Attending Doctor / Staff:</b> <span id="m-doctor">---</span></p>
+          </div>
+        </div>
+
         <fieldset><legend>Select Message Template</legend>
-          <label class="inline block"><input type="radio" name="m-tpl" value="confirm"> 1. Appointment Confirmation (uses latest appointment date)</label>
-          <label class="inline block"><input type="radio" name="m-tpl" value="cancel"> 2. Appointment Cancellation (manual input)</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="confirm" checked> 1. Appointment Confirmation (uses latest appointment date)</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="cancel"> 2. Appointment Cancellation (manual reason & suggestion)</label>
           <label class="inline block"><input type="radio" name="m-tpl" value="clearance"> 3. Medical Clearance Issued</label>
           <label class="inline block"><input type="radio" name="m-tpl" value="hdfok"> 4. HDF Approval (uses latest HDF date)</label>
-          <label class="inline block"><input type="radio" name="m-tpl" value="hdfno"> 5. HDF Cancellation (manual input)</label>
+          <label class="inline block"><input type="radio" name="m-tpl" value="hdfno"> 5. HDF Cancellation (manual reason & suggestion)</label>
         </fieldset>
-        <div id="m-extra" class="hidden">
-          <label>Reason<input id="m-reason"></label>
-          <label>Suggest time<input id="m-suggest"></label>
+
+        <div id="m-extra" class="hidden form" style="background: var(--bg); padding: 14px; border-radius: 10px; border: 1px solid var(--card-border);">
+          <label>Cancellation Reason
+            <input id="m-reason-input" placeholder="e.g., Doctor is unavailable on this day">
+          </label>
+          <label>Suggested Alternative Date/Time
+            <input id="m-suggest-input" placeholder="e.g., Tomorrow at 10:00 AM">
+          </label>
         </div>
+
         <div class="actions"><button class="btn primary" id="m-send">Send Message</button></div>
       </div>
     </div>
