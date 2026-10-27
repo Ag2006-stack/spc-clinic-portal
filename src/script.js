@@ -1,10 +1,24 @@
 'use strict';
 
 const ADMIN_NAME = 'Admin', ADMIN_PASS = '1952';
-const SEMESTERS = [
-  { label: '1st Semester 2025', start: '2025-01-01', end: '2025-05-31' },
-  { label: '2nd Semester 2025', start: '2025-06-01', end: '2025-12-31' },
-];
+
+// Dynamic year & semester generation
+function getDynamicSemesters() {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 1, currentYear, currentYear + 1];
+  const semesters = [];
+
+  years.forEach(yr => {
+    semesters.push(
+      { label: `1st Sem ${yr}`, start: `${yr}-01-01`, end: `${yr}-05-31` },
+      { label: `2nd Sem ${yr}`, start: `${yr}-06-01`, end: `${yr}-12-31` }
+    );
+  });
+  return semesters;
+}
+
+const SEMESTERS = getDynamicSemesters();
+
 const TEMPLATES = {
   confirm:   'Appointment Confirmed! Please be at the clinic 5 minutes before your schedule on [Date/Time].',
   cancel:    'Appointment Canceled. Reason: [Reason]. Suggested alternative: [Suggestion]. Please visit the portal to select a new time.',
@@ -32,9 +46,11 @@ function toast(msg, isError) {
   t.textContent = msg; t.className = 'show' + (isError ? ' error' : '');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', 3200);
 }
+
 function info(title, body) {
   if ($('#dlg-title')) { $('#dlg-title').textContent = title; $('#dlg-body').textContent = body; $('#dlg').showModal(); }
 }
+
 function confirmBox(title, body) {
   return new Promise(res => {
     const d = $('#confirm-dlg'); if (!d) return res(false);
@@ -44,23 +60,26 @@ function confirmBox(title, body) {
     d.showModal();
   });
 }
+
 async function hash(s) {
   if (!(window.crypto && crypto.subtle)) return 'plain:' + s;
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+
 const pad = n => String(n).padStart(2, '0');
 const nowStamp = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+
 function fmtDateTime(date, time) {
   const d = new Date(`${date}T${time.length === 5 ? time + ':00' : time}`);
   if (isNaN(d)) return `${date} ${time}`;
   let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()} ${h}:${pad(d.getMinutes())}${ap}`;
 }
+
 const inRange = (date, s, e) => date >= s && date <= e;
 const byNewest = (a, b) => (b.appt_date + b.appt_time).localeCompare(a.appt_date + a.appt_time);
 
-// PAGE ROUTING & CHECKS
 const pageId = document.body.id;
 
 function checkAuth() {
@@ -75,7 +94,7 @@ function checkAuth() {
 }
 checkAuth();
 
-// LOGIN & SIGNUP
+// AUTHENTICATION
 if ($('#signup-form')) {
   $('#signup-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -128,6 +147,7 @@ function studentTab(name) {
   if (name === 'notifications') renderNotifications();
   updateBadge();
 }
+
 if (pageId === 'page-student') {
   $$('#view-student [data-tab]').forEach(b => b.addEventListener('click', () => studentTab(b.dataset.tab)));
   studentTab('home');
@@ -139,6 +159,7 @@ function updateBadge() {
   const n = DB.get('messages').filter(m => m.student_id === session.id).length - seen;
   const b = $('#notif-badge'); if (b) { b.textContent = n; b.classList.toggle('hidden', n <= 0); }
 }
+
 function renderNotifications() {
   if (!session) return;
   const msgs = DB.get('messages').filter(m => m.student_id === session.id).sort((a, b) => b.sent_date.localeCompare(a.sent_date));
@@ -178,7 +199,7 @@ if ($('#profile-form')) {
   });
 }
 
-// ADMIN DASHBOARD LOGIC
+// ADMIN DASHBOARD LOGIC & DYNAMIC SEMESTERS
 function adminTab(name) {
   $$('#view-admin .tab').forEach(t => t.classList.add('hidden'));
   if ($('#atab-' + name)) $('#atab-' + name).classList.remove('hidden');
@@ -187,13 +208,15 @@ function adminTab(name) {
 }
 
 let table = 'appointments', archiveSem = null;
+
 function recordsHtml(rows, withDelete) {
-  if (!rows.length) return '<tr><td class="empty">No records.</td></tr>';
+  if (!rows || !rows.length) return '<tr><td class="empty">No records.</td></tr>';
   return `<thead><tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Doctor</th><th>Reason</th><th>Type</th><th>Submitted</th>${withDelete ? '<th></th>' : ''}</tr></thead><tbody>` +
     rows.map((r, i) => `<tr><td>${esc(r.student_id)}</td><td>${esc(r.student_name)}</td><td>${esc(r.appt_date)}</td><td>${esc(r.appt_time)}</td><td>${esc(r.doctor)}</td>
       <td class="reason" data-reason="${i}">${esc(r.reason) || '—'}</td><td>${esc(r.type)}</td><td>${esc(r.submission_time)}</td>
       ${withDelete ? `<td><button class="btn" data-del="${i}">Delete</button></td>` : ''}</tr>`).join('') + '</tbody>';
 }
+
 let shown = [];
 function renderRecords(rows, title) {
   shown = rows.slice().sort(byNewest);
@@ -201,16 +224,73 @@ function renderRecords(rows, title) {
   if ($('#records-table')) $('#records-table').innerHTML = recordsHtml(shown, true);
   if ($('#archive-delete-bar')) $('#archive-delete-bar').classList.toggle('hidden', table !== 'appointment_archive');
 }
+
 function renderActive() { table = 'appointments'; archiveSem = null; renderRecords(DB.get('appointments'), 'Current records'); }
+
 function renderArchive(i) {
   table = 'appointment_archive'; archiveSem = i; const s = SEMESTERS[i];
   renderRecords(DB.get('appointment_archive').filter(r => inRange(r.appt_date, s.start, s.end)), 'Archive – ' + s.label);
 }
 
+function initSemesterDropdown() {
+  const select = $('#semester-select');
+  if (!select) return;
+  select.innerHTML = SEMESTERS.map((sem, index) => `<option value="${index}">${sem.label}</option>`).join('');
+}
+
 if (pageId === 'page-admin') {
+  initSemesterDropdown();
   $$('#view-admin [data-atab]').forEach(b => b.addEventListener('click', () => adminTab(b.dataset.atab)));
+
   if ($('#view-active')) $('#view-active').onclick = renderActive;
-  $$('[data-archive-view]').forEach(b => b.onclick = () => renderArchive(+b.dataset.archiveView));
+
+  if ($('#btn-view-archive')) {
+    $('#btn-view-archive').onclick = () => {
+      const idx = +$('#semester-select').value;
+      renderArchive(idx);
+    };
+  }
+
+  if ($('#btn-do-archive')) {
+    $('#btn-do-archive').onclick = async () => {
+      const idx = +$('#semester-select').value;
+      const s = SEMESTERS[idx];
+      const rows = DB.get('appointments');
+      const move = rows.filter(r => inRange(r.appt_date, s.start, s.end));
+      if (!move.length) return toast(`No active records found to archive for ${s.label}.`, true);
+      if (!await confirmBox('Confirm Archive Action', `Archive ${move.length} record(s) for ${s.label}?`)) return;
+      DB.set('appointment_archive', DB.get('appointment_archive').concat(move));
+      DB.set('appointments', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
+      toast(`${move.length} records archived for ${s.label}.`);
+      renderActive();
+    };
+  }
+
+  if ($('#btn-delete-active')) {
+    $('#btn-delete-active').onclick = async () => {
+      const idx = +$('#semester-select').value;
+      const s = SEMESTERS[idx];
+      const rows = DB.get('appointments');
+      const gone = rows.filter(r => inRange(r.appt_date, s.start, s.end));
+      if (!gone.length) return toast(`No active records found for ${s.label}.`, true);
+      if (!await confirmBox('CONFIRM DELETE', `Permanently delete ${gone.length} active record(s) for ${s.label}?`)) return;
+      DB.set('appointments', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
+      toast(`${gone.length} active records deleted for ${s.label}.`);
+      renderActive();
+    };
+  }
+
+  if ($('#delete-archive')) {
+    $('#delete-archive').onclick = async () => {
+      const s = SEMESTERS[archiveSem], rows = DB.get('appointment_archive');
+      const gone = rows.filter(r => inRange(r.appt_date, s.start, s.end));
+      if (!gone.length) return toast(`No archive records found for ${s.label}.`, true);
+      if (!await confirmBox('CONFIRM DELETE ARCHIVE RECORDS', `Delete ${gone.length} archive record(s) for ${s.label}?`)) return;
+      DB.set('appointment_archive', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
+      toast(`${gone.length} archive records deleted.`);
+      renderArchive(archiveSem);
+    };
+  }
 
   if ($('#records-table')) {
     $('#records-table').addEventListener('click', async e => {
@@ -219,7 +299,7 @@ if (pageId === 'page-admin') {
       const del = e.target.closest('[data-del]');
       if (del) {
         const r = shown[+del.dataset.del];
-        if (!await confirmBox('Delete record', `Delete the record for ${r.student_name}?`)) return;
+        if (!await confirmBox('Delete record', `Delete record for ${r.student_name}?`)) return;
         const rows = DB.get(table), k = rows.findIndex(x => JSON.stringify(x) === JSON.stringify(r));
         if (k >= 0) { rows.splice(k, 1); DB.set(table, rows); }
         table === 'appointments' ? renderActive() : renderArchive(archiveSem);
@@ -227,21 +307,11 @@ if (pageId === 'page-admin') {
     });
   }
 
-  $$('[data-archive-do]').forEach(b => b.onclick = async () => {
-    const s = SEMESTERS[+b.dataset.archiveDo], rows = DB.get('appointments');
-    const move = rows.filter(r => inRange(r.appt_date, s.start, s.end));
-    if (!move.length) return toast(`No active records found to archive for ${s.label}.`, true);
-    if (!await confirmBox('Confirm Archive', `Archive all CURRENT records for ${s.label}?`)) return;
-    DB.set('appointment_archive', DB.get('appointment_archive').concat(move));
-    DB.set('appointments', rows.filter(r => !inRange(r.appt_date, s.start, s.end)));
-    toast(`${move.length} records archived.`); renderActive();
-  });
-
   adminTab('records');
   renderActive();
 }
 
-// SEARCH & MESSAGING
+// SEARCH & MESSAGING LOGIC
 function renderSearch() {
   const q = $('#search-id')?.value.trim().toLowerCase() || '';
   const rows = DB.get('appointments').filter(r => !q || r.student_id.toLowerCase().includes(q)).sort(byNewest);
